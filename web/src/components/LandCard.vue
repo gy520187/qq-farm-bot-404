@@ -107,7 +107,7 @@ const canRemove = computed(() => props.showActions && isRemovable.value)
 
 const landTextureName = computed(() => {
   const targetLand = land.value || {}
-  const level = Math.min(5, Math.max(1, Number(targetLand.level) || 1))
+  const level = Math.min(6, Math.max(1, Number(targetLand.level) || 1))
   const isSnow = Boolean(
     targetLand.isSnow
     || targetLand.snow
@@ -131,7 +131,7 @@ const landTextureName = computed(() => {
 
 const landTextureUrl = computed(() => {
   if (Number(land.value?.plantSize) > 1)
-    return `/game-config/land_images/land_valid${Math.min(5, Math.max(1, Number(land.value?.level) || 1))}_2x2.png`
+    return `/game-config/land_images/land_valid${Math.min(6, Math.max(1, Number(land.value?.level) || 1))}_2x2.png`
   return `/game-config/land_images/${landTextureName.value}.png`
 })
 

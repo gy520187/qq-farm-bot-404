@@ -6,7 +6,7 @@ import { useSettingStore } from '@/stores/setting'
 
 type AlertType = 'primary' | 'danger'
 
-const allFertilizerLandTypes = ['purple', 'gold', 'black', 'red', 'normal']
+const allFertilizerLandTypes = ['blue', 'purple', 'gold', 'black', 'red', 'normal']
 
 const defaultAutomation = {
   farm: false,
@@ -118,6 +118,7 @@ export function useAutomationSettings({
   const autoCodeRefreshing = ref(false)
 
   const fertilizerLandTypeOptions = [
+    { label: '蓝晶土地', value: 'blue' },
     { label: '紫土地', value: 'purple' },
     { label: '金土地', value: 'gold' },
     { label: '黑土地', value: 'black' },
