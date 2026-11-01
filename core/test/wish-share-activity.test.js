@@ -3,6 +3,7 @@ const assert = require('node:assert/strict');
 const protobuf = require('protobufjs');
 const path = require('node:path');
 const { getItemById, getItemImageById } = require('../src/config/gameConfig');
+const { assetExists } = require('./_asset-resolver');
 const {
   isWishSignActive, isShareRewardActive,
   normalizeWishSignActivity, normalizeShareRewardActivity,
@@ -70,20 +71,21 @@ test('wish pool uses official day rewards and all reward images are local', () =
   assert.equal(wish.rewardPool[1].itemCount, 48);
   assert.equal(wish.rewardPool[13].itemId, 204010);
   const expectedImages = new Map([
-    [6001, '/activity/wish-sign/firework.png'],
-    [26030, '/activity/wish-sign/moon-beauty-seed.png'],
-    [80002, '/activity/wish-sign/fertilizer-4h.png'],
-    [80003, '/activity/wish-sign/fertilizer-8h.png'],
-    [80004, '/activity/wish-sign/fertilizer-12h.png'],
-    [80013, '/activity/wish-sign/organic-fertilizer-8h.png'],
-    [80014, '/activity/wish-sign/organic-fertilizer-12h.png'],
-    [1002, '/activity/wish-sign/coupon.png'],
-    [20435, '/activity/wish-sign/lily-seed.png'],
-    [204010, '/activity/wish-sign/moon-rabbit-skin.png'],
-    [90042, '/activity/wish-sign/cute-bear-skin.png'],
+    [6001, '/game-config/seed_images_named/icon_use_firework_1.png'],
+    [26030, '/game-config/seed_images_named/46030.png'],
+    [80002, '/game-config/seed_images_named/icon_feterlize2.png'],
+    [80003, '/game-config/seed_images_named/icon_feterlize3.png'],
+    [80004, '/game-config/seed_images_named/icon_feterlize4.png'],
+    [80013, '/game-config/seed_images_named/icon_feterlize7.png'],
+    [80014, '/game-config/seed_images_named/icon_feterlize8.png'],
+    [1002, '/game-config/seed_images_named/star.png'],
+    [20435, '/game-config/seed_images_named/40435.png'],
+    [204010, '/game-config/seed_images_named/icon_skin_tower_5.png'],
+    [90042, '/game-config/seed_images_named/Item_dogSkin_31_5.png'],
   ]);
   for (const [itemId, imagePath] of expectedImages) {
     assert.equal(getItemImageById(itemId), imagePath);
+    assert.equal(assetExists(imagePath), true, `${itemId} image file`);
   }
   assert.equal(getItemById(6001).can_use, 1);
 });

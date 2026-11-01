@@ -84,9 +84,9 @@ test('charity flower activity items use official names and static icons', () => 
   assert.equal(getItemById(1040)?.name, '爱心值');
   assert.equal(getItemById(2158)?.name, '小红花做好事头像框');
   assert.equal(getItemById(101604)?.name, '公益小红花结算礼包');
-  assert.equal(getItemImageById(101604), '/activity/charity-flower/settlement-pack.png');
+  assert.equal(getItemImageById(101604), '/game-config/seed_images_named/pack_redFlower.png');
   assert.equal(
-    fs.existsSync(path.join(__dirname, '..', '..', 'web', 'public', 'activity', 'charity-flower', 'settlement-pack.png')),
+    assetExists('/game-config/seed_images_named/pack_redFlower.png'),
     true,
     'charity flower settlement pack image file',
   );
@@ -104,14 +104,14 @@ test('seed levels come from seed item configuration', () => {
 
 test('qixi activity items resolve official static icons', () => {
   const expected = new Map([
-    [1024, '/activity/qixi/qixi-feather.png'],
-    [301103, '/activity/qixi/qixi-dew.png'],
+    [1024, '/game-config/seed_images_named/icon_qixi_feather.png'],
+    [301103, '/game-config/seed_images_named/icon_qixi_water.png'],
   ]);
 
   for (const [itemId, imageUrl] of expected) {
     assert.equal(getItemImageById(itemId), imageUrl);
     assert.equal(
-      fs.existsSync(path.join(__dirname, '..', '..', 'web', 'public', imageUrl)),
+      assetExists(imageUrl),
       true,
       `${getItemById(itemId)?.name} image file`,
     );
@@ -120,30 +120,21 @@ test('qixi activity items resolve official static icons', () => {
 
 test('rain poem activity items resolve official names and static icons', () => {
   const expected = new Map([
-    [1027, ['雷电徽章', '/activity/rain-poem/lightning-badge.svg']],
-    [4002, ['闪电感应', '/activity/rain-poem/lightning-sense.png?v=2']],
-    [4003, ['闪电感应', '/activity/rain-poem/lightning-sense.png?v=2']],
-    [5001, ['天气采集瓶', '/activity/rain-poem/weather-collection-bottle.png']],
-    [5002, ['雷雨召唤瓶', '/activity/rain-poem/rainstorm-summon-bottle.png']],
-    [5005, ['青蛙使坏瓶', '/activity/rain-poem/frog-prank-bottle.png']],
-    [5006, ['乌云使坏瓶', '/activity/rain-poem/cloud-prank-bottle.png']],
-    [2159, ['雨落成诗头像框', '/activity/rain-poem/avatar-frame.png?v=2']],
+    [1027, ['雷电徽章', '/game-config/seed_images_named/icon_weatherBottle_lightningBadge.png']],
+    [4002, ['闪电感应', '/game-config/seed_images_named/icon_weatherBottle_lightningMutant.png']],
+    [4003, ['闪电感应', '/game-config/seed_images_named/icon_weatherBottle_lightningMutant.png']],
+    [5001, ['天气采集瓶', '/game-config/seed_images_named/icon_weatherBottle_1.png']],
+    [5002, ['雷雨召唤瓶', '/game-config/seed_images_named/icon_weatherBottle_2.png']],
+    [5005, ['青蛙使坏瓶', '/game-config/seed_images_named/icon_weatherBottle_5.png']],
+    [5006, ['乌云使坏瓶', '/game-config/seed_images_named/icon_weatherBottle_6.png']],
+    [2159, ['雨落成诗头像框', '/game-config/seed_images_named/img_avatar_weatherBottle.png']],
     [100003, ['化肥礼包', '/game-config/seed_images_named/100003_pack_03.png']],
   ]);
 
   for (const [itemId, [name, imageUrl]] of expected) {
     assert.equal(getItemById(itemId)?.name, name);
     assert.equal(getItemImageById(itemId), imageUrl);
-    const imagePath = imageUrl.split('?', 1)[0];
-    if (imagePath.startsWith('/activity/')) {
-      assert.equal(
-        fs.existsSync(path.join(__dirname, '..', '..', 'web', 'public', imagePath)),
-        true,
-        `${name} image file`,
-      );
-    } else {
-      assert.equal(assetExists(imagePath), true, `${name} image file`);
-    }
+    assert.equal(assetExists(imageUrl), true, `${name} image file`);
   }
 });
 

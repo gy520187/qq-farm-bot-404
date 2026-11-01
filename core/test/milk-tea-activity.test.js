@@ -155,10 +155,11 @@ test('share and fund panels retain claim states, conditions and normalized rewar
 test('fund bear decorations and happiness reward resolve to local official icons', () => {
   const config = require('../src/config/gameConfig');
   config.loadConfigs();
+  const materialAssets = path.join(__dirname, '../plugins/material-plugin/assets');
   for (let id = 210041; id <= 210048; id++) {
     const image = config.getItemImageById(id);
-    assert.ok(image.startsWith('/activity/milk-tea/icon_'), String(id));
-    assert.ok(fs.existsSync(path.join(pluginRoot, 'assets', image.replace('/activity/milk-tea/', ''))), image);
+    assert.match(image, /^\/game-config\/seed_images_named\/icon_\w+\.png$/, String(id));
+    assert.ok(fs.existsSync(path.join(materialAssets, image.replace('/game-config/', ''))), image);
   }
 });
 
