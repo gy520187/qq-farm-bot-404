@@ -59,6 +59,8 @@ const defaultAutomation = {
   milk_tea_work_interact: false,
   milk_tea_work_interact_type: 1,
   milk_tea_seed_buy: false,
+  milk_tea_seed_buy_coin: false,
+  milk_tea_seed_buy_exp: false,
   pet_diary_feed: false,
   pet_diary_draw: false,
   pet_diary_story_claim: false,

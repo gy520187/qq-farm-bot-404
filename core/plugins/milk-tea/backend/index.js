@@ -13,6 +13,22 @@ const { createMilkTeaService, AUTO_ACTIONS, phase, reserveMilkTeaFruit, normaliz
 
 const PLUGIN_ROOT = __dirname;
 
+// 金币果（种子 20522）/ 经验蘑菇（种子 20523）默认不参与自动采购，
+// 只有对应开关开启时才买；物品名兜底用于商店 item 结构变化时的识别。
+const OPTIONAL_SEED_RULES = [
+    { key: 'milk_tea_seed_buy_coin', ids: ['20522'], names: ['金币果种子'] },
+    { key: 'milk_tea_seed_buy_exp', ids: ['20523'], names: ['经验蘑菇种子'] },
+];
+
+function optionalSeedKey(goods) {
+    const items = goods?.items || [];
+    const rule = OPTIONAL_SEED_RULES.find(entry => items.some(good => (
+        entry.ids.includes(String(good.id))
+        || entry.names.some(name => String(good.name || '').includes(name))
+    )));
+    return rule?.key || '';
+}
+
 // worker 进程内的服务单例：每账号 worker 一个实例
 let service = null;
 
@@ -65,7 +81,13 @@ async function runMilkTeaAutomation(runContext) {
             if (!Number(state.summary.shop_open_at) && !['shareDaily', 'shareRewards', 'fundRewards'].includes(action)) continue;
             let params = {};
             if (action === 'buy') {
-                const goods = state.goods.find(x => x.category_tag === 'seed' && x.unlocked && x.remaining > 0 && !x.paid && x.affordable);
+                const goods = state.goods.find((x) => {
+                    if (!(x.category_tag === 'seed' && x.unlocked && x.remaining > 0 && !x.paid && x.affordable))
+                        return false;
+                    // 金币果/经验蘑菇种子默认跳过，需对应开关显式开启
+                    const optionalKey = optionalSeedKey(x);
+                    return !optionalKey || automation?.[optionalKey] === true;
+                });
                 if (!goods) continue;
                 params = { goodsId: goods.id, count: 1 };
             }
@@ -136,7 +158,7 @@ module.exports = {
             ctx.registerApiMethod('operateMilkTea', (action, params) => service.operateMilkTea(action, params));
             ctx.registerApiMethod('milkTeaRecords', (kind, params) => service.milkTeaRecords(kind, params));
             ctx.registerAutomation({
-                keys: Object.keys(AUTO_ACTIONS),
+                keys: [...Object.keys(AUTO_ACTIONS), ...OPTIONAL_SEED_RULES.map(rule => rule.key)],
                 run: runContext => runMilkTeaAutomation({ ...runContext, log: ctx.log }),
             });
             // 仓库卖出保护：营业期内、自动制作开启时保留活动果实

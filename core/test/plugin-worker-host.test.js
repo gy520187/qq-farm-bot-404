@@ -42,9 +42,12 @@ test('loaded plugin exposes registered api methods, automation and fruit reserve
     assert.ok(host.hasEnabledAutomation({ milk_tea_cashier: true }));
     assert.equal(host.hasEnabledAutomation({ milk_tea_cashier: false }), false);
     assert.ok(host.getAutomationKeys().includes('milk_tea_cashier'));
+    // 金币果/经验蘑菇种子是可选的子开关：单独开启也要能被识别为自动化变更
+    assert.ok(host.getAutomationKeys().includes('milk_tea_seed_buy_coin'));
+    assert.ok(host.getAutomationKeys().includes('milk_tea_seed_buy_exp'));
     assert.equal(host.reserveFruit(40525, { automation: { milk_tea_craft: true }, nowSec: 1792030000 }), true);
     assert.equal(host.reserveFruit(40525, { automation: { milk_tea_craft: false }, nowSec: 1792030000 }), false);
-    assert.ok(logs.some(([, msg]) => msg.includes('活动插件 milk-tea@1.1.0 已加载')), '加载成功日志');
+    assert.ok(logs.some(([, msg]) => msg.includes('活动插件 milk-tea@1.1.1 已加载')), '加载成功日志');
 
     host.dispose();
 });

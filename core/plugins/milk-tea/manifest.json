@@ -1,7 +1,7 @@
 {
   "id": "milk-tea",
   "name": "奶茶热销中",
-  "version": "1.1.0",
+  "version": "1.1.1",
   "apiVersion": 1,
   "description": "经营奶茶小店、兑换商店与兼职工作",
   "activityIds": [2026110100],
@@ -22,6 +22,8 @@
     { "key": "milk_tea_hire", "label": "自动雇佣员工", "detail": "按列表顺序选择首个符合类型的空闲好友", "window": "business", "type": "boolean", "default": false },
     { "key": "milk_tea_work_interact", "label": "自动打工互动", "detail": "被雇佣后自动选择一种互动方式", "window": "business", "type": "boolean", "default": false },
     { "key": "milk_tea_seed_buy", "label": "自动购买已解锁种子", "detail": "不使用钻石", "window": "business", "type": "boolean", "default": false },
+    { "key": "milk_tea_seed_buy_coin", "label": "同时购买金币果种子", "detail": "仅在自动购买已解锁种子开启时生效，默认不买", "window": "business", "type": "boolean", "default": false },
+    { "key": "milk_tea_seed_buy_exp", "label": "同时购买经验蘑菇种子", "detail": "仅在自动购买已解锁种子开启时生效，默认不买", "window": "business", "type": "boolean", "default": false },
     { "key": "milk_tea_hire_duration", "label": "雇佣时长", "detail": "自动雇佣时选择的班次时长", "window": "business", "type": "select", "default": 1, "options": [
       { "value": 1, "label": "4 小时" },
       { "value": 2, "label": "12 小时" },

@@ -48,6 +48,8 @@ export interface AutomationConfig {
   milk_tea_work_interact?: boolean
   milk_tea_work_interact_type?: number
   milk_tea_seed_buy?: boolean
+  milk_tea_seed_buy_coin?: boolean
+  milk_tea_seed_buy_exp?: boolean
   pet_diary_feed?: boolean
   pet_diary_draw?: boolean
   pet_diary_story_claim?: boolean
