@@ -988,8 +988,6 @@ useIntervalFn(updateCountdowns, 1000)
 .game-home {
   display: flex;
   width: 100%;
-  max-width: 760px;
-  margin: 0 auto;
   flex-direction: column;
   gap: 14px;
 }
@@ -1737,8 +1735,6 @@ useIntervalFn(updateCountdowns, 1000)
 /* 原首页的「运行日志」「下次检查倒计时」「今日统计」，沿用首页大框的圆角磨砂玻璃样式 */
 .legacy-section {
   width: 100%;
-  max-width: 760px;
-  margin: 0 auto;
 }
 
 /* 与首页大毛玻璃框（.glass-panel）完全同一套视觉参数，仅不设 padding */

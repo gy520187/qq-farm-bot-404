@@ -6,7 +6,7 @@
 
 🌱 一位会自己浇水、除草、收菜的 QQ 农场小帮手
 
-[能做什么](#-能做什么) · [活动插件](#-活动插件) · [自动化](#-自动化怎么开) · [微信扫码](#-微信扫码登录) · [开始种田](#-开始种田) · [Docker 部署](#-docker-部署) · [更新记录](docs/CHANGELOG.md) · [使用文档](#-使用文档) · [支持项目](#-支持项目)
+[能做什么](#-能做什么) · [活动插件](#-活动插件) · [自动化](#-自动化怎么开) · [微信扫码](#-微信扫码登录) · [开始种田](#-开始种田) · [Docker 部署](#-docker-部署) · [更新记录](docs/CHANGELOG.md) · [上游与致谢](#-上游与致谢) · [使用文档](#-使用文档) · [支持项目](#-支持项目)
 
 </div>
 
@@ -251,6 +251,21 @@ qq-farm-bot-404/
 ├── docker-compose.yml
 └── package.json
 ```
+
+## 🙏 上游与致谢
+
+本项目是 [Asunxu/qq-farm-bot-404](https://github.com/Asunxu/qq-farm-bot-404) 二次开发版本，基于 [xxxscarlxrd404/qq-farm-bot](https://github.com/xxxscarlxrd404/qq-farm-bot) 发展而来，并参考了社区中其他农场开源项目的实现，感谢原作者与所有贡献者。
+
+| 项目 | 关系 | 说明 |
+| --- | --- | --- |
+| [xxxscarlxrd404/qq-farm-bot](https://github.com/xxxscarlxrd404/qq-farm-bot) | 主要上游 | 本项目的代码基础；[sync-upstream.yml](.github/workflows/sync-upstream.yml) 定时合并其 `main`，合并时保留自定义前端 UI 与插件化改造 |
+| [muyuewang/qq-farm-bot-404](https://github.com/muyuewang/qq-farm-bot-404) | 参考上游 | 藏品宝典等部分功能移植自其 `79c465f`，活动协议适配、自动化实现与官方配置表同步大量参考该项目 |
+| [liyangpengs/qq-farm-bot](https://github.com/liyangpengs/qq-farm-bot) | 参考上游 | 活动协议恢复、自动化策略与界面实现参考该项目的开源版本 |
+| [xlzcandy / qq-classic-farm-update-log](https://gitee.com/xlzcandy/qq-classic-farm-update-log)（Gitee） | 更新日志数据源 | 面板「更新记录」读取的社区更新日志，来自经典农场重构版作者 xlzcandy |
+| [mlikiowa/napcat-docker](https://github.com/mlikiowa/napcat-docker) | 可选容器镜像 | Docker 部署中可选的 QQ/NapCat 扫码登录服务 |
+| 微信扫码（应用宝 OAuth） | 外部服务 | 扫码链路使用应用宝官方授权页与内置 MMTLS 协议换取 Code，不属于开源项目 |
+
+上游代码按各自仓库的许可与使用条款提供，本项目的二次开发改动遵循下方免责声明。
 
 ## 📖 使用文档
 

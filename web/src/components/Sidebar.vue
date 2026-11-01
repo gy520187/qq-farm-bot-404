@@ -28,6 +28,7 @@ const wsErrorNotifiedAt = ref<Record<string, number>>({})
 
 const systemConnected = ref(true)
 const serverUptimeBase = ref(0)
+const serverVersion = ref('')
 const lastPingTime = ref(Date.now())
 const now = useNow()
 const formattedTime = useDateFormat(now, 'YYYY-MM-DD HH:mm:ss')
@@ -40,6 +41,9 @@ async function checkConnection() {
       if (res.data.data.uptime) {
         serverUptimeBase.value = res.data.data.uptime
         lastPingTime.value = Date.now()
+      }
+      if (res.data.data.version) {
+        serverVersion.value = res.data.data.version
       }
     }
     const accountRef = currentAccount.value?.id || currentAccount.value?.uin
@@ -177,6 +181,25 @@ watch(
 
 const showThemeDropdown = ref(false)
 const showUserPanel = ref(false)
+const showTokenPanel = ref(false)
+const tokenVisible = ref(false)
+const tokenCopied = ref(false)
+
+async function copyToken() {
+  const value = userStore.token
+  if (!value)
+    return
+  try {
+    await navigator.clipboard.writeText(value)
+    tokenCopied.value = true
+    setTimeout(() => {
+      tokenCopied.value = false
+    }, 2000)
+  }
+  catch {
+    tokenCopied.value = false
+  }
+}
 
 function navigateToSystemSettings() {
   router.push('/admin?tab=system')
@@ -313,6 +336,47 @@ async function handleLogout() {
       </router-link>
     </nav>
 
+    <!-- 我的 Token（登录会话凭证，可复制用于 x-admin-token 调用接口） -->
+    <div v-if="userStore.token" class="-mx-3 mt-2 flex-none border-t px-3 pt-2" style="border-color: color-mix(in srgb, var(--theme-text) 10%, transparent);">
+      <button
+        class="w-full flex items-center justify-between rounded-lg px-3 py-2 transition-colors hover:bg-gray-100/50 dark:hover:bg-gray-700/50"
+        @click="showTokenPanel = !showTokenPanel"
+      >
+        <div class="flex items-center gap-2">
+          <div class="i-carbon-key text-sm" :style="{ color: 'var(--theme-primary)' }" />
+          <span class="text-xs font-medium opacity-70">我的 Token</span>
+        </div>
+        <div
+          class="i-carbon-chevron-down text-gray-400 transition-transform duration-200"
+          :class="{ 'rotate-180': showTokenPanel }"
+        />
+      </button>
+      <div v-show="showTokenPanel" class="px-1 pt-2 transition-all">
+        <div class="mb-1 flex items-center justify-between">
+          <button
+            class="flex items-center gap-1 rounded px-2 py-1 text-xs transition-colors hover:bg-gray-100 dark:hover:bg-gray-700"
+            :class="tokenVisible ? 'text-blue-500' : 'opacity-70'"
+            @click="tokenVisible = !tokenVisible"
+          >
+            <div :class="tokenVisible ? 'i-carbon-view-off' : 'i-carbon-view'" />
+            <span>{{ tokenVisible ? '隐藏' : '显示' }}</span>
+          </button>
+          <button
+            class="flex items-center gap-1 rounded px-2 py-1 text-xs transition-colors hover:bg-gray-100 dark:hover:bg-gray-700"
+            :class="tokenCopied ? 'text-green-500' : 'opacity-70'"
+            @click="copyToken"
+          >
+            <div v-if="tokenCopied" class="i-carbon-checkmark" />
+            <div v-else class="i-carbon-copy" />
+            <span>{{ tokenCopied ? '已复制' : '复制' }}</span>
+          </button>
+        </div>
+        <div class="break-all rounded bg-gray-100/50 px-2 py-1.5 text-[10px] font-mono text-gray-600 dark:bg-gray-700/50 dark:text-gray-400">
+          {{ tokenVisible ? userStore.token : '••••••••••••••••' }}
+        </div>
+      </div>
+    </div>
+
     <!-- Footer Status -->
     <div class="relative mt-4 flex-none rounded-xl px-3 py-2.5" style="background: color-mix(in srgb, var(--surface-2) 80%, transparent);">
       <div class="flex items-center justify-between text-xs">
@@ -336,14 +400,19 @@ async function handleLogout() {
       </div>
 
       <div class="mt-1 flex items-center justify-between text-xs font-mono opacity-70" style="color: var(--theme-text);">
-        <span>v{{ version }}</span>
-        <a
-          href="https://github.com/xxxscarlxrd404/qq-farm-bot"
-          target="_blank"
-          rel="noopener noreferrer"
-          class="transition-opacity hover:opacity-70"
-          title="打开 GitHub 项目主页"
-        >xxxscarlxrd404</a>
+        <div class="flex items-center gap-2">
+          <span>Web v{{ version }}</span>
+          <a
+            href="https://github.com/Asunxu/qq-farm-bot-404"
+            target="_blank"
+            rel="noopener noreferrer"
+            title="开源地址"
+            class="inline-flex items-center transition-opacity hover:opacity-70"
+          >
+            <div class="i-carbon-logo-github text-base" />
+          </a>
+        </div>
+        <span v-if="serverVersion">Core v{{ serverVersion }}</span>
       </div>
 
       <!-- 主题选择弹出面板 -->
