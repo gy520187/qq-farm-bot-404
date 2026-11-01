@@ -79,7 +79,12 @@ export const useIllustratedStore = defineStore('illustrated', () => {
       if (requestId !== fetchRequestId || !isCurrentAccount(requestedId))
         return
       if (data.ok) {
-        items.value = data.data?.items || []
+        // 图鉴按所需等级升序展示，同等级按种子 ID 稳定排序
+        items.value = (data.data?.items || []).slice().sort(
+          (a: IllustratedItem, b: IllustratedItem) =>
+            (Number(a.level) || 0) - (Number(b.level) || 0)
+            || (Number(a.seedId) || 0) - (Number(b.seedId) || 0),
+        )
         summary.value = data.data?.summary || summary.value
         userLevel.value = data.data?.userLevel || 0
       }
