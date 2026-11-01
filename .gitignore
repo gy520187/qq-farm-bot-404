@@ -37,8 +37,11 @@ __pycache__/
 # Trae 临时分享包
 .trae-html-share-packages/
 
-# 微信小程序 wxapkg 解密工具（本地副本，不提交）
-tools/wxapkg-decrypt/
+# 本地工具目录（解密/渲染/CDN 等本地副本，不提交）
+tools/
+
+# Trae 本地工作产物（不提交）
+.workbuddy/
 
 # 本地开发记忆（不提交）
 DEV-MEMORY.md
