@@ -19,6 +19,7 @@ const coreRoot = path.resolve(__dirname, '..');
 const localConfigDir = path.join(coreRoot, 'src', 'gameConfig');
 
 const { findLatestSource } = require('../src/services/activity-update-scanner');
+const { isInvalidPlant } = require('../src/config/invalidPlants');
 const {
     assetUrl,
     bundleConfigUrl,
@@ -180,8 +181,19 @@ async function main() {
             try { localRows = JSON.parse(fs.readFileSync(localFile, 'utf8').replace(/^\uFEFF/, '')); } catch {}
         }
 
-        const localIds = new Set(localRows.map(r => r?.id).filter(id => id != null));
-        const appendRows = rows.filter(r => r?.id != null && !localIds.has(r.id));
+        // 多数表以 id 为主键；RoleLevel 等表没有 id，用 level 作键
+        const rowKey = r => (r?.id ?? r?.level);
+        const localIds = new Set(localRows.map(rowKey).filter(k => k != null));
+        let appendRows = rows.filter(r => rowKey(r) != null && !localIds.has(rowKey(r)));
+        // 官方提前下发但尚未开放的植物（InvalidPlants 黑名单）不追加进本地配置，
+        // 避免运行时配置与黑名单测试冲突；运行时 filterInvalidPlants 仍兜底。
+        if (tableName === 'Plant') {
+            const blocked = appendRows.filter(isInvalidPlant);
+            if (blocked.length) {
+                process.stderr.write(`[黑名单] Plant: 跳过 ${blocked.length} 行（${blocked.map(r => `${r.id}:${r.name || ''}`).join(', ')}）\n`);
+                appendRows = appendRows.filter(r => !isInvalidPlant(r));
+            }
+        }
 
         if (!appendRows.length) {
             process.stderr.write(`[同步] ${tableName} → ${TABLE_TO_LOCAL_FILE[tableName]} (官方 ${rows.length}，本地 ${localRows.length}，无新增)\n`);
@@ -196,7 +208,7 @@ async function main() {
         }
 
         const merged = [...localRows, ...appendRows];
-        merged.sort((a, b) => Number(a.id ?? 0) - Number(b.id ?? 0));
+        merged.sort((a, b) => Number(a.id ?? a.level ?? 0) - Number(b.id ?? b.level ?? 0));
         fs.writeFileSync(localFile, JSON.stringify(merged, null, 2) + '\n', 'utf8');
         process.stderr.write(`[已追加] ${tableName} → ${TABLE_TO_LOCAL_FILE[tableName]}: +${appendRows.length} 行 (官方 ${rows.length}，本地 ${localRows.length}，合计 ${merged.length})\n`);
         totalAppended += appendRows.length;

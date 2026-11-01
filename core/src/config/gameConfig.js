@@ -12,6 +12,7 @@ let plantConfig = null;
 const plantMap = new Map();          // plantId → plant
 const seedToPlant = new Map();       // seedId → plant
 const fruitToPlant = new Map();      // fruitId → plant
+const eventSeedIds = new Set();      // EventPlants 收录的活动植物种子 ID
 
 // 物品配置
 let itemInfoConfig = null;
@@ -179,6 +180,7 @@ function loadConfigs() {
                 if (isInvalidPlant(entry)) continue;
                 const plantId = Number(entry.id);
                 const seedId = Number(entry.seed_id) || 0;
+                if (seedId > 0) eventSeedIds.add(seedId);
                 const existing = plantMap.get(plantId) || (seedId > 0 ? seedToPlant.get(seedId) : null);
                 if (existing) {
                     // 宿主已有：只补 EventPlants 有而宿主缺的字段
@@ -801,6 +803,11 @@ function getSeedLevel(seedId) {
     return item ? Number(item.level) || 0 : 0;
 }
 
+/** 是否为 EventPlants 收录的活动植物种子；其 >=200 的等级是官方占位值，不参与本地等级限制 */
+function isEventSeedId(seedId) {
+    return eventSeedIds.has(Number(seedId) || 0);
+}
+
 /** 获取果实单价 */
 function getFruitPrice(fruitId) {
     const item = itemInfoMap.get(Number(fruitId) || 0);
@@ -960,6 +967,7 @@ module.exports = {
     getMutantDisplayPlantId,
     getMutantPlantImageByPhase,
     getSeedLevel,
+    isEventSeedId,
     getMutantEffectById,
     getMutantEffectByIcon,
     getAllMutantEffects,

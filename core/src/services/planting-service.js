@@ -1,7 +1,7 @@
 const { sendMsgAsync, getUserState, getWsErrorState } = require('../utils/network');
 const { types } = require('../utils/proto');
 const { toNum, toLong, toTimeSec, getServerTimeSec, log, logWarn, sleep } = require('../utils/utils');
-const { getPlantNameBySeedId, getPlantGrowTime, formatGrowTime, getAllSeeds, getPlantBySeedId, getPlantById } = require('../config/gameConfig');
+const { getPlantNameBySeedId, getPlantGrowTime, formatGrowTime, getAllSeeds, getPlantBySeedId, getPlantById, isEventSeedId } = require('../config/gameConfig');
 const {
   getPlantingStrategy,
   syncBagSeedPriority,
@@ -183,9 +183,11 @@ function getPlantSizeBySeedId(seedId) {
 
 function isSeedLockedByLevel(seed, userLevel) {
   const requiredLevel = Number(seed && seed.requiredLevel);
-  // 项目约定：配置为大于等于 200 级的种子不参与本地种植等级限制，保留原始配置值。
-  if (requiredLevel >= 200) return false;
-  return Number.isFinite(requiredLevel) && requiredLevel > Number(userLevel || 0);
+  if (!Number.isFinite(requiredLevel)) return false;
+  // 活动植物种子（EventPlants 收录）的 >=200 等级是官方占位值，不参与本地种植等级限制；
+  // 普通种子官方已将真实等级开放到 200 以上（上限 240），必须按真实等级判断。
+  if (requiredLevel >= 200 && isEventSeedId(seed && (seed.seedId ?? seed.seed_id))) return false;
+  return requiredLevel > Number(userLevel || 0);
 }
 
 function isLockedPlantError(error) {
@@ -456,27 +458,15 @@ async function plantPrioritized2x2Crops(emptyLandIds, lands, accountId) {
     });
     return { reservedLandIds: [], plantedMasterIds: [], plantedCount: 0, occupiedCount: 0 };
   }
-  const userState = getUserState();
-  const userLevel = Number(userState && userState.level) || 0;
-  // 2x2 种子与 1x1 共用同一份背包优先级顺序；被移除（排除）的种子不参与种植。
+  // 背包种子不看种植等级：活动/礼包获得的高等级种子官方允许直接种植，
+  // 等级锁只约束商店购买；若服务端仍拒绝，按锁定错误跳过（isLockedPlantError 兜底）。
   const syncedPriority = syncBagSeedPriority(accountId, bagSeeds, { persist: false });
   const excludedSet = new Set(syncedPriority.excluded || []);
   const sortedSize2Seeds = sortBagSeedsForPlanting(
     syncedPriority.seeds.filter(seed => (Number(seed.plantSize) || 1) === 2 && !excludedSet.has(seed.seedId)),
     syncedPriority.priority
   ).map(seed => ({ ...seed, count: Number(seed.count) || 0 }));
-  const lockedByLevelSeeds = sortedSize2Seeds.filter(seed => isSeedLockedByLevel(seed, userLevel));
-  const size2Seeds = sortedSize2Seeds.filter(seed => !isSeedLockedByLevel(seed, userLevel));
-
-  if (lockedByLevelSeeds.length > 0) {
-    log('种植', `已跳过当前等级未解锁的 2x2 背包种子: ${lockedByLevelSeeds.map(seed => seed.name || seed.seedId).join('，')}`, {
-      module: 'farm',
-      event: '种植2x2作物',
-      result: 'skip_locked',
-      seedIds: lockedByLevelSeeds.map(seed => seed.seedId),
-      userLevel,
-    });
-  }
+  const size2Seeds = sortedSize2Seeds;
 
   const totalSeedCount = size2Seeds.reduce((sum, seed) => sum + seed.count, 0);
   if (totalSeedCount <= 0) {
@@ -1105,7 +1095,7 @@ async function autoPlantEmptyLands(deadLandIds, emptyLandIds, lands = []) {
         },
         getBagSeeds,
         getPlant: getPlantBySeedId,
-        isLocked: plant => isSeedLockedByLevel({ requiredLevel: plant.land_level_need }, userState.level),
+        isLocked: plant => isSeedLockedByLevel({ requiredLevel: plant.land_level_need, seedId: plant.seed_id }, userState.level),
         plantSeeds,
         warn: message => logWarn('成长种植', message),
         buySeed: async (seedId, count, previousOwned) => {
