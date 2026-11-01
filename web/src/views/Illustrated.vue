@@ -2,7 +2,9 @@
 import { storeToRefs } from 'pinia'
 import { computed, onMounted, ref, watch } from 'vue'
 import ConfirmModal from '@/components/ConfirmModal.vue'
+import CollectionsPanel from '@/components/illustrated/CollectionsPanel.vue'
 import IllustratedItemCard from '@/components/illustrated/IllustratedItemCard.vue'
+import MutationCatalogPanel from '@/components/illustrated/MutationCatalogPanel.vue'
 import BaseButton from '@/components/ui/BaseButton.vue'
 import { useAccountStore } from '@/stores/account'
 import { useIllustratedStore } from '@/stores/illustrated'
@@ -18,6 +20,8 @@ const { items, summary, loading, buying, error, userLevel } = storeToRefs(illust
 
 const filter = ref<'all' | 'unlocked' | 'locked'>('all')
 const illustratedType = ref(1)
+type BookTab = 'crop' | 'mutant' | 'collection' | 'catalog'
+const bookTab = ref<BookTab>('crop')
 
 const showConfirm = ref(false)
 const confirmTitle = ref('确认购买')
@@ -35,10 +39,18 @@ const filteredItems = computed(() => {
 
 const lockedCount = computed(() => Math.max(0, summary.value.total - summary.value.unlocked))
 
-const typeTabs = [
-  { value: 1, label: '作物图鉴' },
-  { value: 2, label: '变异图鉴' },
+const bookTabs: Array<{ value: BookTab, label: string, illustratedType?: number }> = [
+  { value: 'crop', label: '作物图鉴', illustratedType: 1 },
+  { value: 'mutant', label: '超变图鉴', illustratedType: 2 },
+  { value: 'collection', label: '藏品' },
+  { value: 'catalog', label: '变异宝典' },
 ]
+
+function switchBookTab(tab: (typeof bookTabs)[number]) {
+  bookTab.value = tab.value
+  if (tab.illustratedType)
+    illustratedType.value = tab.illustratedType
+}
 
 const filterTabs: Array<{ value: 'all' | 'unlocked' | 'locked', label: string }> = [
   { value: 'all', label: '全部' },
@@ -169,15 +181,25 @@ onMounted(() => {
 
 <template>
   <section class="space-y-4">
-    <div class="rounded-lg bg-white p-4 shadow-sm dark:bg-gray-800">
+    <div class="h-10 inline-flex max-w-full overflow-x-auto border border-gray-200 rounded-lg bg-white p-0.5 dark:border-gray-700 dark:bg-gray-800">
+      <button
+        v-for="item in bookTabs"
+        :key="item.value"
+        class="min-w-20 flex-none rounded-md px-3 text-sm font-medium transition"
+        :class="segmentedButtonClasses(bookTab === item.value)"
+        :style="bookTab === item.value ? { backgroundColor: 'var(--theme-primary)' } : {}"
+        @click="switchBookTab(item)"
+      >
+        {{ item.label }}
+      </button>
+    </div>
+
+    <CollectionsPanel v-if="bookTab === 'collection'" />
+    <MutationCatalogPanel v-else-if="bookTab === 'catalog'" @goto-collections="bookTab = 'collection'" />
+
+    <div v-else class="rounded-lg bg-white p-4 shadow-sm dark:bg-gray-800">
       <div class="mb-4 flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
         <div class="min-w-0 flex flex-wrap items-center gap-3">
-          <div class="flex items-center gap-2">
-            <div class="i-carbon-book text-2xl text-emerald-500" />
-            <h1 class="text-xl font-bold">
-              图鉴
-            </h1>
-          </div>
           <div class="flex flex-wrap items-center gap-2 text-sm">
             <span class="h-8 flex items-center rounded-lg bg-emerald-50 px-3 text-xs text-emerald-700 dark:bg-emerald-900/20 dark:text-emerald-300">
               {{ summary.unlocked }}/{{ summary.total }} 已解锁
@@ -195,18 +217,6 @@ onMounted(() => {
         </div>
 
         <div class="flex shrink-0 flex-wrap items-center gap-2">
-          <div class="h-9 inline-flex overflow-hidden border border-gray-200 rounded-lg bg-white p-0.5 dark:border-gray-700 dark:bg-gray-800">
-            <button
-              v-for="item in typeTabs"
-              :key="item.value"
-              class="min-w-20 rounded-md px-3 text-sm font-medium transition"
-              :class="segmentedButtonClasses(illustratedType === item.value)"
-              :style="illustratedType === item.value ? { backgroundColor: 'var(--theme-primary)' } : {}"
-              @click="illustratedType = item.value"
-            >
-              {{ item.label }}
-            </button>
-          </div>
           <div class="h-9 inline-flex overflow-hidden border border-gray-200 rounded-lg bg-white p-0.5 dark:border-gray-700 dark:bg-gray-800">
             <button
               v-for="item in filterTabs"

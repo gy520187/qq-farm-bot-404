@@ -273,6 +273,12 @@ function createDataProvider(deps) {
         getIllustratedList,
         claimIllustratedRewards: (ref, type) => callWorkerApi(resolveAccountId(ref), 'claimIllustratedRewards', type),
 
+        // ========== Collections（藏品宝典，只读） ==========
+        getCollectionsSnapshot: (ref) => {
+            const accountId = resolveAccountId(ref);
+            return callWorkerReadOnce(`collections:${String(accountId || '')}`, accountId, 'getCollectionsSnapshot');
+        },
+
         // ========== Career ==========
         getCareerInfo: (ref, gid) => callWorkerApi(resolveAccountId(ref), 'getCareerInfo', gid),
 
