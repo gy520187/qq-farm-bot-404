@@ -1,9 +1,9 @@
 const process = require('node:process');
 
-const DEFAULT_CLIENT_VERSION = '1.15.1.4_20261001';
+const DEFAULT_CLIENT_VERSION = '1.16.1.6_20261028';
 
 // 微信端版本号单独验证，与 QQ 各存一份：抓包或人工覆盖其中一个时，另一个不会被带着走。
-const DEFAULT_WX_CLIENT_VERSION = '1.15.1.4_20261001';
+const DEFAULT_WX_CLIENT_VERSION = '1.16.1.6_20261028';
 
 function isWechatPlatform(platform) {
     return ['wx', 'wechat'].includes(String(platform || '').trim().toLowerCase());
