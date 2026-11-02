@@ -13,7 +13,7 @@ import SeedGoodsCard from '@/components/shop/SeedGoodsCard.vue'
 import ShopAccountHeader from '@/components/shop/ShopAccountHeader.vue'
 import ShopEmptyState from '@/components/shop/ShopEmptyState.vue'
 import ShopTabToolbar from '@/components/shop/ShopTabToolbar.vue'
-import { createShopAvailability } from '@/composables/shop/useShopAvailability'
+import { createShopAvailability, getMallLimitPeriodLabel } from '@/composables/shop/useShopAvailability'
 import { useAccountStore } from '@/stores/account'
 import { useShopStore } from '@/stores/shop'
 import { useStatusStore } from '@/stores/status'
@@ -70,6 +70,7 @@ const quantityModal = ref({
   currencyLabel: '',
   balance: 0,
   maxQuantity: 99,
+  limitLabel: '',
 })
 
 const currentLevel = computed(() => status.value?.status?.level || 0)
@@ -316,6 +317,8 @@ function getShopMaxQuantity(item: any, balance: number) {
 }
 
 function openQuantityModal(item: any, mode: 'shop' | 'mall', currencyLabel: string, balance: number) {
+  const limitCount = Number(item?.limitCount || 0)
+  const limitLabel = limitCount > 0 ? `${getMallLimitPeriodLabel(item?.limitType)}限购 · 还可购买` : ''
   quantityModal.value = {
     show: true,
     item,
@@ -323,6 +326,7 @@ function openQuantityModal(item: any, mode: 'shop' | 'mall', currencyLabel: stri
     currencyLabel,
     balance,
     maxQuantity: getShopMaxQuantity(item, balance),
+    limitLabel,
   }
 }
 
@@ -588,6 +592,7 @@ onUnmounted(() => {
       :currency-label="quantityModal.currencyLabel"
       :balance="quantityModal.balance"
       :max-quantity="quantityModal.maxQuantity"
+      :limit-label="quantityModal.limitLabel"
       :loading="confirmLoading"
       :is-free="!!quantityModal.item?.isFree"
       @confirm="runQuantityPurchase"

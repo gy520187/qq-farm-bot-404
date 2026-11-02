@@ -83,6 +83,8 @@ message PlantInfo {
     repeated SocialItem social_items = 35;      // 好友放置的背包型社交道具
     // 抓包确认：301103 鹊羽灵露使用后为 {奖励值, 1}。
     PlantExtendedStatus field_40 = 40;
+    // 阶段级变异记录（含藏品系列与物品 ID）
+    repeated PlantMutationRecord extended_mutations = 41;
 }
 
 // PlantInfo.field 40：字段 1 保留服务端奖励值，字段 2 为已生效标记。
@@ -123,6 +125,21 @@ message MutantInfo {
     int64 mutant_time = 1;
     int64 mutant_config_id = 2;
     int64 weather_id = 3;
+    // field 4 reserved
+    int64 mutant_plant_id = 5;     // 变异后作物 ID
+    bool forced_src = 6;           // 是否来源手动强化
+    int64 collection_series_id = 7; // 藏品系列 ID（变异 id=18 时下发）
+    int64 collection_item_id = 8;  // 藏品物品 ID
+}
+
+// PlantInfo.field 41：阶段级变异记录（含藏品系列与物品 ID）
+message PlantMutationRecord {
+    int64 mutant_config_id = 1;
+    int64 mutant_time = 2;
+    int64 mutant_plant_id = 3;
+    bool forced_src = 4;
+    int64 collection_series_id = 5;
+    int64 collection_item_id = 6;
 }
 
 // ============ 操作限制 ============

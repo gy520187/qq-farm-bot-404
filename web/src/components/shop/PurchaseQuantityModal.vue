@@ -14,6 +14,7 @@ const props = withDefaults(defineProps<{
   loading?: boolean
   maxQuantity?: number
   isFree?: boolean
+  limitLabel?: string
 }>(), {
   title: '\u786E\u8BA4\u8D2D\u4E70',
   loading: false,
@@ -139,7 +140,7 @@ useModalFocus(() => props.show, modalSurface, closeModal)
               <label :for="`${modalId}-quantity`" class="text-sm text-gray-700 font-medium dark:text-gray-300">
                 {{ L.quantity }}
               </label>
-              <span class="text-xs text-gray-500 dark:text-gray-400">{{ L.max }} {{ maxBuyCount }}</span>
+              <span class="text-xs text-gray-500 dark:text-gray-400">{{ limitLabel || L.max }} {{ maxBuyCount }}</span>
             </div>
             <div class="qty-control-row">
               <button

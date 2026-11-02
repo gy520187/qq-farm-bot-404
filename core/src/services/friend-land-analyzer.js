@@ -38,6 +38,7 @@ const {
   getDisplayLandContext,
   isOccupiedSlaveLand,
   getQixiDewStatus,
+  getPlantCollectionMutations,
 } = require('./farm-land-analyzer');
 const { classifyGatewayDefer, planNextSyncPacing } = require('./friend-dog-sync-pacing');
 
@@ -562,6 +563,14 @@ async function getFriendLandsDetail(gid) {
 
       // Mutant effects
       const mutantEffects = getMutantEffectsByIds(mutantConfigIds);
+      const collectionMutations = getPlantCollectionMutations(targetPlant, currentPhase);
+      if (collectionMutations.length > 0) {
+        for (const effect of mutantEffects) {
+          if (Number(effect.id) === 18) {
+            effect.collections = collectionMutations;
+          }
+        }
+      }
       const qixiDew = getQixiDewStatus(targetPlant);
 
       detailLands.push({

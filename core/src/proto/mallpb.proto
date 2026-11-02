@@ -39,6 +39,14 @@ message MallGoods {
   bool enabled = 12;         // 商品是否启用
 }
 
+// 限购信息（MallGoods.limit 字段 7 的嵌套消息）
+// 官方 RestrictionType：1=每日、2=每周、3=每月、4=永久。
+message PurchaseLimit {
+  int32 limit_type = 1;    // 周期类型
+  int64 bought_count = 2;  // 已购数
+  int64 limit_count = 3;   // 上限
+}
+
 // 购买请求
 message PurchaseRequest {
   int32 goods_id = 1;  // 商品ID

@@ -6,6 +6,18 @@ interface ShopAvailabilityContext {
   userGoldBean: () => number
 }
 
+// 官方 RestrictionType：1=每日、2=每周、3=每月、4=永久。
+const LIMIT_PERIOD_LABELS: Record<number, string> = {
+  1: '每日',
+  2: '每周',
+  3: '每月',
+  4: '永久',
+}
+
+export function getMallLimitPeriodLabel(type?: number): string {
+  return LIMIT_PERIOD_LABELS[Number(type)] || '活动'
+}
+
 const L = {
   soldOutSeed: '\u8BE5\u79CD\u5B50\u5F53\u524D\u5DF2\u552E\u7F44\u3002',
   soldOutPet: '\u8BE5\u5BA0\u7269\u5F53\u524D\u5DF2\u552E\u7F44\u3002',
@@ -112,7 +124,7 @@ export function createShopAvailability(context: ShopAvailabilityContext) {
     const limitCount = Number(item.limitCount || 0)
     const boughtNum = Number(item.boughtNum || 0)
     if (limitCount > 0) {
-      const period = Number(item.limitType || 0) === 1 ? '每日' : '活动'
+      const period = getMallLimitPeriodLabel(item.limitType)
       return `${period}限购 ${limitCount}，剩余 ${Math.max(0, limitCount - boughtNum)}。`
     }
     return item.isFree ? L.freeHint : L.canBuyHint

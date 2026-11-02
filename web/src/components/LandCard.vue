@@ -146,18 +146,37 @@ const mutantEffects = computed(() => {
   return effects
     .map((effect: any) => {
       const icon = String(effect?.icon || '').trim()
+      const isCollection = Number(effect?.id) === 18
+      const collections = Array.isArray(effect?.collections) ? effect.collections : []
+      const specificCollections = collections.filter((c: any) => Number(c?.collectionItemId) > 0)
+      const hasSpecificCollection = specificCollections.length > 0
+      // 藏品变异：有具体藏品物品时显示首个藏品图片；否则用通用藏品标记，
+      // 避免误用官方 MutantEffect.icon 误配的奶茶图。
+      const displayImage = isCollection
+        ? (hasSpecificCollection
+            ? (specificCollections[0]?.icon || '/game-config/seed_images_named/mutant/18.png')
+            : '/game-config/seed_images_named/mutant/18.png')
+        : (icon === 'lightning'
+            ? '/activity/rain-poem/lightning-sense.png?v=2'
+            : (icon ? `/game-config/seed_images_named/mutant/${icon}.png` : ''))
       return {
         id: Number(effect?.id) || 0,
         name: String(effect?.name || effect?.effect_name || icon || '变异').trim(),
         icon,
-        image: icon === 'lightning'
-          ? '/activity/rain-poem/lightning-sense.png?v=2'
-          : (icon ? `/game-config/seed_images_named/mutant/${icon}.png` : ''),
+        image: displayImage,
         tag: String(effect?.tag || '').trim(),
         description: String(effect?.description || effect?.desc || effect?.tips || '').trim(),
+        collections: collections.map((c: any) => ({
+          collectionSeriesId: Number(c?.collectionSeriesId) || 0,
+          collectionItemId: Number(c?.collectionItemId) || 0,
+          name: String(c?.name || '').trim(),
+          icon: String(c?.icon || '').trim(),
+        })),
+        isCollection,
+        hasSpecificCollection,
       }
     })
-    .filter((effect: any) => effect.icon)
+    .filter((effect: any) => effect.image || effect.isCollection)
 })
 
 const hasGoldenMutation = computed(() => mutantEffects.value.some((effect: any) =>
@@ -590,14 +609,28 @@ function getIsometricBubbleClass(targetLand: any) {
               class="inline-flex items-center gap-1 rounded-full bg-white px-2 py-1 text-[11px] text-pink-700 shadow-sm dark:bg-gray-900 dark:text-pink-200"
             >
               <img :src="effect.image" :alt="effect.name" class="h-4 w-4 object-contain">
-              <span class="font-medium">{{ effect.name }}</span>
-              <span v-if="effect.tag && effect.tag !== '无'" class="text-[10px] text-pink-400">· {{ effect.tag }}</span>
+              <template v-if="effect.isCollection && effect.hasSpecificCollection">
+                <span class="font-medium">{{ effect.collections.map((c: any) => c.name).join('、') }}</span>
+                <span class="text-[10px] text-pink-400">· 藏品</span>
+              </template>
+              <template v-else>
+                <span class="font-medium">{{ effect.name }}</span>
+                <span v-if="effect.tag && effect.tag !== '无'" class="text-[10px] text-pink-400">· {{ effect.tag }}</span>
+              </template>
             </div>
           </div>
           <div class="mt-2 rounded-md bg-white/85 px-2 py-1.5 text-[11px] text-pink-700 shadow-sm space-y-1 dark:bg-gray-900/85 dark:text-pink-200">
-            <div v-for="effect in mutantEffects" :key="`description-${effect.id}-${effect.icon}`">
-              {{ effect.description || effect.name }}
-            </div>
+            <template v-for="effect in mutantEffects" :key="`description-${effect.id}-${effect.icon}`">
+              <div v-if="effect.isCollection && effect.hasSpecificCollection">
+                藏品系列：
+                <span v-for="(c, idx) in effect.collections" :key="c.collectionItemId">
+                  {{ Number(idx) > 0 ? '、' : '' }}{{ c.name }}
+                </span>
+              </div>
+              <div v-else>
+                {{ effect.description || effect.name }}
+              </div>
+            </template>
           </div>
         </div>
 

@@ -1,5 +1,5 @@
 const { PlantPhase, PHASE_NAMES } = require('../config/config');
-const { getPlantName, getPlantExp, getPlantById, getPlantGrowTime, getPlantGrowPhases, getSeedImageBySeedId, getMutantDisplayPlantId, getMutantPlantImageByPhase, getMutantEffectsByIds } = require('../config/gameConfig');
+const { getPlantName, getPlantExp, getPlantById, getPlantGrowTime, getPlantGrowPhases, getSeedImageBySeedId, getMutantDisplayPlantId, getMutantPlantImageByPhase, getMutantEffectsByIds, getItemById, getItemImageById } = require('../config/gameConfig');
 const { toNum, toTimeSec, getServerTimeSec, logWarn } = require('../utils/utils');
 const { getAllLands } = require('./farm-api');
 
@@ -124,22 +124,74 @@ function buildLandMap(lands) {
 }
 
 /**
- * 收集植物当前生效的变异配置 ID。
+ * 收集植物当前生效的变异记录（保留藏品系列与物品 ID）。
  *
  * 全量土地响应通常在 PlantInfo.mutant_config_ids 返回结果，但部分新变异会先随
- * 当前 PlantPhaseInfo.mutants 下发。两处都读取，避免个人土地漏掉阶段级变异。
+ * 当前 PlantPhaseInfo.mutants 或 PlantInfo.extended_mutations(field 41) 下发。
+ * 三处都读取，避免个人土地漏掉阶段级变异。
  */
-function getPlantMutantConfigIds(plant, currentPhase) {
-  const plantIds = Array.isArray(plant && plant.mutant_config_ids)
+function getPlantMutantRecords(plant, currentPhase) {
+  const configIds = Array.isArray(plant && plant.mutant_config_ids)
     ? plant.mutant_config_ids
     : [];
   const phaseMutants = Array.isArray(currentPhase && currentPhase.mutants)
     ? currentPhase.mutants
     : [];
-  return [...new Set([
-    ...plantIds.map(toNum),
-    ...phaseMutants.map(item => toNum(item && item.mutant_config_id))
-  ].filter(Boolean))];
+  const extendedMutants = Array.isArray(plant && plant.extended_mutations)
+    ? plant.extended_mutations
+    : [];
+
+  const records = [];
+  const seen = new Set();
+
+  // 1) 阶段级 records（含藏品系列/物品 ID）
+  for (const item of [...phaseMutants, ...extendedMutants]) {
+    const id = toNum(item && item.mutant_config_id);
+    if (!id) continue;
+    records.push({
+      mutantConfigId: id,
+      collectionSeriesId: toNum(item.collection_series_id),
+      collectionItemId: toNum(item.collection_item_id),
+    });
+    seen.add(id);
+  }
+
+  // 2) 全量 config_ids 补充阶段级没有的变异
+  for (const id of configIds) {
+    const numId = toNum(id);
+    if (!numId || seen.has(numId)) continue;
+    records.push({ mutantConfigId: numId, collectionSeriesId: 0, collectionItemId: 0 });
+  }
+
+  return records;
+}
+
+function getPlantMutantConfigIds(plant, currentPhase) {
+  return getPlantMutantRecords(plant, currentPhase).map(r => r.mutantConfigId);
+}
+
+/** 藏品变异（mutant_config_id === 18）关联的藏品系列与物品。 */
+const COLLECTION_MUTANT_CONFIG_ID = 18;
+
+function getPlantCollectionMutations(plant, currentPhase) {
+  const records = getPlantMutantRecords(plant, currentPhase)
+    .filter(r => r.mutantConfigId === COLLECTION_MUTANT_CONFIG_ID);
+  if (records.length === 0) return [];
+
+  const dedup = new Map();
+  for (const record of records) {
+    const itemId = record.collectionItemId;
+    if (!itemId || dedup.has(itemId)) continue;
+    const info = getItemById(itemId);
+    const name = info && (info.name || info.item_name) ? String(info.name || info.item_name) : `藏品 #${itemId}`;
+    dedup.set(itemId, {
+      collectionSeriesId: record.collectionSeriesId,
+      collectionItemId: itemId,
+      name,
+      icon: getItemImageById(itemId),
+    });
+  }
+  return [...dedup.values()];
 }
 
 /** 获取从属土地 ID 列表 */
@@ -593,6 +645,14 @@ function buildLandsDetailFromReply(landsReply, serverTime = getServerTimeSec()) 
 
       // 变异效果
       const mutantEffects = getMutantEffectsByIds(mutantConfigIds);
+      const collectionMutations = getPlantCollectionMutations(plant, currentPhase);
+      if (collectionMutations.length > 0) {
+        for (const effect of mutantEffects) {
+          if (Number(effect.id) === COLLECTION_MUTANT_CONFIG_ID) {
+            effect.collections = collectionMutations;
+          }
+        }
+      }
       const qixiDew = getQixiDewStatus(plant);
 
       details.push({
@@ -617,6 +677,8 @@ module.exports = {
   convertServerPhaseToClient,
   buildLandMap,
   getPlantMutantConfigIds,
+  getPlantMutantRecords,
+  getPlantCollectionMutations,
   getDisplayLandContext,
   isOccupiedSlaveLand,
   analyzeLands,

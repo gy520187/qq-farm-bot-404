@@ -353,7 +353,7 @@ async function handleLogout() {
         class="account-menu-surface fixed z-[9999] overflow-y-auto border border-gray-200/70 rounded-xl bg-white/95 py-1 shadow-xl backdrop-blur-sm dark:border-gray-700/70 dark:bg-gray-900/95"
         :style="{ top: `${dropdownPos.top}px`, left: `${dropdownPos.left}px`, width: `${dropdownPos.width}px`, maxHeight: `${dropdownPos.maxHeight}px` }"
       >
-        <div class="custom-scrollbar max-h-72 overflow-y-auto">
+        <div class="custom-scrollbar max-h-72 overflow-y-auto px-1">
           <template v-if="visibleAccounts.length > 0">
             <div
               v-for="acc in visibleAccounts"
