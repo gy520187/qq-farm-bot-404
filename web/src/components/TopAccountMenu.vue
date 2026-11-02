@@ -12,6 +12,9 @@ import { getPlatformClass, getPlatformLabel, useAccountStore } from '@/stores/ac
 import { useStatusStore } from '@/stores/status'
 import { useUserStore } from '@/stores/user'
 
+// 非概览页需要在右上角显示当前账号头像，概览页自身面板已有头像，故由布局层传入开关
+const props = withDefaults(defineProps<{ showAvatar?: boolean }>(), { showAvatar: false })
+
 const router = useRouter()
 const accountStore = useAccountStore()
 const statusStore = useStatusStore()
@@ -186,6 +189,17 @@ function openCareer() {
 
 const displayName = computed(() => accountDisplayName(currentAccount.value))
 
+// 触发器头像：仅在非概览页展示，取值规则与下拉列表保持一致
+const triggerAvatar = computed(() => {
+  if (!props.showAvatar || !currentAccount.value)
+    return ''
+  return avatarSource(currentAccount.value)
+})
+const triggerShowAvatar = computed(() =>
+  !!triggerAvatar.value
+  && shouldShowAvatar(currentAccount.value),
+)
+
 async function openDropdown() {
   updateDropdownPos()
   showAccountDropdown.value = true
@@ -298,8 +312,23 @@ async function handleLogout() {
       :title="displayName"
       @keydown.escape="closeDropdown"
       class="account-trigger"
+      :class="{ 'account-trigger--avatar': showAvatar && currentAccount }"
       @click="toggleDropdown"
     >
+      <span v-if="showAvatar && currentAccount" class="account-trigger-avatar">
+        <img
+          v-if="triggerShowAvatar"
+          :src="triggerAvatar"
+          :alt="displayName"
+          class="account-trigger-avatar-img"
+          @error="markAvatarFailed(currentAccount)"
+        >
+        <span v-else class="account-trigger-initial">{{ avatarInitial(currentAccount) }}</span>
+        <span
+          class="account-trigger-dot"
+          :class="isAccountOnline(currentAccount) ? 'bg-green-500' : 'bg-red-500'"
+        />
+      </span>
       <span
         class="account-trigger-arrow i-carbon-chevron-down"
         :class="{ 'rotate-180': showAccountDropdown }"
@@ -508,6 +537,49 @@ async function handleLogout() {
 .account-trigger:hover {
   background: rgba(255, 255, 255, 0.55);
   box-shadow: 0 10px 30px rgba(31, 38, 80, 0.16);
+}
+
+/* 带头像时改为胶囊按钮，容纳头像 + 下箭头 */
+.account-trigger--avatar {
+  width: auto;
+  gap: 4px;
+  padding: 0 10px 0 6px;
+}
+
+.account-trigger-avatar {
+  position: relative;
+  display: flex;
+  height: 32px;
+  width: 32px;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  border-radius: 9999px;
+  background: rgba(255, 255, 255, 0.6);
+  overflow: visible;
+}
+
+.account-trigger-avatar-img {
+  height: 100%;
+  width: 100%;
+  border-radius: 9999px;
+  object-fit: cover;
+}
+
+.account-trigger-initial {
+  font-size: 13px;
+  font-weight: 600;
+  color: #6b7280;
+}
+
+.account-trigger-dot {
+  position: absolute;
+  right: -1px;
+  bottom: -1px;
+  height: 9px;
+  width: 9px;
+  border-radius: 9999px;
+  box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.9);
 }
 
 .account-trigger-arrow {

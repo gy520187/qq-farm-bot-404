@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { storeToRefs } from 'pinia'
-import { onBeforeUnmount, onMounted, ref, watch } from 'vue'
-import { useRouter } from 'vue-router'
+import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
 import { useIntervalFn } from '@vueuse/core'
 import api from '@/api'
 import AnnouncementPopup from '@/components/AnnouncementPopup.vue'
@@ -17,12 +17,16 @@ import { useUserStore } from '@/stores/user'
 
 const appStore = useAppStore()
 const router = useRouter()
+const route = useRoute()
 
 const accountStore = useAccountStore()
 const statusStore = useStatusStore()
 const userStore = useUserStore()
 const { currentAccount } = storeToRefs(accountStore)
 const { status, realtimeConnected } = storeToRefs(statusStore)
+
+// 概览页的面板里已有头像，其他页面才在右上角账号菜单显示当前账号头像
+const showAccountAvatar = computed(() => route.name !== 'dashboard')
 
 // 原侧边栏的系统保活逻辑：ping、账号轮询、实时状态连接
 const wsErrorNotifiedAt = ref<Record<string, number>>({})
@@ -102,7 +106,7 @@ watch(() => status.value?.wsError, (wsError: any) => {
         <div class="ml-auto flex items-center gap-4">
           <ThemeToggle />
 
-          <TopAccountMenu />
+          <TopAccountMenu :show-avatar="showAccountAvatar" />
         </div>
       </header>
 
