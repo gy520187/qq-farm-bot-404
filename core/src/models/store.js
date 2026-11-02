@@ -389,12 +389,18 @@ const PLUGIN_AUTOMATION_SPECS = new Map();
 const PLUGIN_TIMED_GROUPS = [];
 
 function applyPluginAutomationRegistry(plugins) {
-    for (const key of Object.keys(PLUGIN_AUTOMATION_DEFAULTS)) {
+    const oldKeys = Object.keys(PLUGIN_AUTOMATION_DEFAULTS);
+    for (const key of oldKeys) {
         delete DEFAULT_ACCOUNT_CONFIG.automation[key];
-        ALLOWED_AUTOMATION_KEYS.delete(key);
+        delete PLUGIN_AUTOMATION_DEFAULTS[key];
+        // 注意：不从 ALLOWED_AUTOMATION_KEYS 中删除插件 key。插件回退到旧版本时新开关
+        // 不在 manifest 中，若删除会导致 normalize/save 把用户已保存的值洗掉，升级回新
+        // 版本后配置丢失。保留 key 后，normalize 对无 spec 的插件 key 走"保留原始值"分支。
         PLUGIN_AUTOMATION_SPECS.delete(key);
+        // 同步清理 fallback 默认配置；账号配置中的旧 key 由 forceDisableAutomationKeys
+        // 在卸载流程中强制关闭，不在此处删除，避免破坏卸载时的变更检测
+        if (accountFallbackConfig?.automation) delete accountFallbackConfig.automation[key];
     }
-    for (const key of Object.keys(PLUGIN_AUTOMATION_DEFAULTS)) delete PLUGIN_AUTOMATION_DEFAULTS[key];
     PLUGIN_TIMED_GROUPS.length = 0;
     for (const plugin of plugins || []) {
         const manifest = plugin.manifest || {};
@@ -406,6 +412,9 @@ function applyPluginAutomationRegistry(plugins) {
             PLUGIN_AUTOMATION_DEFAULTS[spec.key] = spec.default;
             DEFAULT_ACCOUNT_CONFIG.automation[spec.key] = spec.default;
             ALLOWED_AUTOMATION_KEYS.add(spec.key);
+            // 同步写入 fallback 默认配置，确保 normalizeAccountConfig 产出的 cfg
+            // 包含插件开关，applyConfigSnapshot 不会因 undefined 跳过保存
+            if (accountFallbackConfig?.automation) accountFallbackConfig.automation[spec.key] = spec.default;
             const window = spec.window && windows[spec.window];
             if (window) {
                 const group = groupsByWindow.get(spec.window) || {
@@ -430,6 +439,12 @@ function loadPluginAutomationRegistry() {
     } catch {
         // 注册表不存在或损坏时按无插件处理
         applyPluginAutomationRegistry([]);
+    }
+    // loadGlobalConfig 在注册表加载前执行，normalize 时 ALLOWED_AUTOMATION_KEYS
+    // 尚未包含插件开关，导致已落盘的插件配置被丢弃。注册表就绪后需重新 normalize
+    // 各账号配置，把 store.json 中的插件开关合并进内存。
+    for (const [id, cfg] of Object.entries(globalConfig.accountConfigs || {})) {
+        globalConfig.accountConfigs[id] = normalizeAccountConfig(cfg, accountFallbackConfig);
     }
 }
 
@@ -573,6 +588,9 @@ const DEFAULT_ACCOUNT_CONFIG = {
 };
 
 const ALLOWED_AUTOMATION_KEYS = new Set(Object.keys(DEFAULT_ACCOUNT_CONFIG.automation));
+// 内置自动化开关 key（不含插件）。用于在 normalize 时区分：插件开关即使当前 manifest
+// 中不存在（如回退到旧版本），也保留用户已保存的原始值，避免升级回新版本时配置被洗掉。
+const BUILTIN_AUTOMATION_KEYS = new Set(ALLOWED_AUTOMATION_KEYS);
 
 // ==================== 标准化函数 ====================
 
@@ -896,8 +914,12 @@ function normalizeAccountConfig(raw, fallbackConfig = accountFallbackConfig) {
             } else if (key === 'wish_sign_choice') {
                 const choice = Number(value);
                 cfg.automation[key] = Number.isInteger(choice) && choice >= 1 && choice <= 6 ? choice : 1;
-            } else {
+            } else if (BUILTIN_AUTOMATION_KEYS.has(key)) {
                 cfg.automation[key] = !!value;
+            } else {
+                // 插件开关在当前 manifest 中不存在（如回退到旧版本）：保留用户已保存的原始值，
+                // 不做 boolean 强制转换，避免 select 类型的选项值丢失，升级回新版本后可恢复。
+                cfg.automation[key] = value;
             }
         }
     }
@@ -1110,6 +1132,10 @@ let captureDefaultsMigrated = false;
 
 function loadGlobalConfig() {
     ensureDataDir();
+    // 先加载插件自动化注册表，确保 ALLOWED_AUTOMATION_KEYS 与 DEFAULT_ACCOUNT_CONFIG
+    // 包含插件开关，后续 normalizeAccountConfig 才不会丢弃 store.json 中已落盘的
+    // 插件自动化配置。
+    loadPluginAutomationRegistry();
     try {
         const data = readJsonFile(STORE_FILE, () => ({}));
         if (!data || typeof data !== 'object') return;
@@ -1362,9 +1388,8 @@ function setAdminPasswordHash(hash) {
 }
 
 loadGlobalConfig();
-// 插件自动化注册表：主进程与 worker 进程都在模块加载时合并一次；
+// 插件自动化注册表已在 loadGlobalConfig 内部加载；
 // 插件安装/卸载/启停后由宿主调用 reloadPluginAutomationRegistry() 刷新。
-loadPluginAutomationRegistry();
 // 将默认开启迁移结果持久化，避免下次重建容器覆盖用户之后保存的选择。
 if (captureDefaultsMigrated) saveGlobalConfig();
 
@@ -1420,7 +1445,8 @@ function applyConfigSnapshot(patch = {}, opts = {}) {
 
     if (patch.automation && typeof patch.automation === 'object') {
         for (const [key, value] of Object.entries(patch.automation)) {
-            if (cfg.automation[key] === undefined) continue;
+            // 允许已注册的自动化 key（含插件开关）写入，即使当前 cfg 中尚无该 key
+            if (cfg.automation[key] === undefined && !ALLOWED_AUTOMATION_KEYS.has(key)) continue;
             if (key === 'fertilizer') {
                 const allowed = ['both', 'normal', 'organic', 'smart', 'smart_only', 'smart_normal', 'final_normal', 'final_organic', 'none'];
                 cfg.automation[key] = allowed.includes(value) ? value : cfg.automation[key];
@@ -1436,8 +1462,12 @@ function applyConfigSnapshot(patch = {}, opts = {}) {
             } else if (key === 'wish_sign_choice') {
                 const choice = Number(value);
                 cfg.automation[key] = Number.isInteger(choice) && choice >= 1 && choice <= 6 ? choice : 1;
-            } else {
+            } else if (BUILTIN_AUTOMATION_KEYS.has(key)) {
                 cfg.automation[key] = !!value;
+            } else {
+                // 插件开关在当前 manifest 中不存在（如回退到旧版本）：保留用户已保存的原始值，
+                // 不做 boolean 强制转换，避免 select 类型的选项值丢失，升级回新版本后可恢复。
+                cfg.automation[key] = value;
             }
         }
     }
