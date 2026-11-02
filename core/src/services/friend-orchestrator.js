@@ -12,7 +12,7 @@ const {
   getIntervals,
 } = require('../models/store');
 const { getUserState, isConnected, networkEvents } = require('../utils/network');
-const { toNum, log, logWarn, randomDelay } = require('../utils/utils');
+const { toNum, log, logWarn, randomDelay, sleep } = require('../utils/utils');
 const { setOperationLimitsCallback } = require('./farm');
 const { createScheduler } = require('./scheduler');
 const {
@@ -71,8 +71,12 @@ let consecutiveBadFailureCount = 0;
 let dogInfoBootstrapAttempted = false;
 let dogInfoBootstrapReadyAt = 0;
 let onFriendLandsObserved = null;
+let isBadRoutineRunning = false;
 
 const BAD_FAILURE_LIMIT = 3;
+// 单次捣乱最多处理的好友数，以及相邻好友之间的间隔
+const BAD_MAX_FRIENDS_PER_RUN = 10;
+const BAD_FRIEND_INTERVAL_MS = 20 * 1000;
 
 // ===== Helpers =====
 
@@ -453,11 +457,15 @@ async function checkFriends(options = {}) {
 
       badCandidates.sort((a, b) => b.level - a.level);
 
-      const topTargets = selectFriendVisitBatch(badCandidates, { accountId, mode: 'bad' });
+      const topTargets = selectFriendVisitBatch(badCandidates, {
+        accountId,
+        mode: 'bad',
+        maxVisits: BAD_MAX_FRIENDS_PER_RUN,
+      });
 
       if (topTargets.length > 0) {
         log('好友',
-          `找到 ${badCandidates.length} 个可捣乱的好友，按等级从高到低处理`,
+          `找到 ${badCandidates.length} 个可捣乱的好友，本次处理等级最高的 ${topTargets.length} 个`,
           {
             module: 'friend',
             event: '放虫放草好友列表',
@@ -468,6 +476,7 @@ async function checkFriends(options = {}) {
 
         for (let i = 0; i < topTargets.length; i++) {
           const target = topTargets[i];
+          if (!isAutomationOn('friend_bad') || isFriendBadPaused()) break;
           if (!canOperateBad()) {
             log('好友', '放虫放草次数已用完，停止执行', {
               module: 'friend',
@@ -490,7 +499,8 @@ async function checkFriends(options = {}) {
               break;
             }
           }
-          await randomDelay(500, 1500);
+          // 处理完一家后间隔 20 秒再切换下一家
+          if (i < topTargets.length - 1) await sleep(BAD_FRIEND_INTERVAL_MS);
         }
       }
     }
@@ -860,8 +870,9 @@ async function acceptFriendsWithRetry(gids) {
 /**
  * Run a one-time "bad" operation on startup to put weeds/insects on friends' farms.
  */
-async function runBadOnceOnStartup(force = false) {
+async function runBadOnceOnStartup(force = false, triggerLabel = '') {
   if (!force && badExecutedOnStartup) return;
+  if (isBadRoutineRunning) return;
 
   const badEnabled = isAutomationOn('friend_bad');
   if (!badEnabled) return;
@@ -877,7 +888,7 @@ async function runBadOnceOnStartup(force = false) {
   }
 
   const accountId = process.env.FARM_ACCOUNT_ID || '';
-  const label = force ? '开启自动捣乱后立即执行' : '启动时放虫放草';
+  const label = triggerLabel || (force ? '开启自动捣乱后立即执行' : '启动时放虫放草');
 
   log('好友', `========== ${label}开始 ==========`, {
     module: 'friend',
@@ -885,6 +896,7 @@ async function runBadOnceOnStartup(force = false) {
   });
 
   try {
+    isBadRoutineRunning = true;
     const allFriendsReply = await getAllFriends();
     const rawFriends = extractReplyFriends(allFriendsReply);
 
@@ -922,8 +934,7 @@ async function runBadOnceOnStartup(force = false) {
 
     badCandidates.sort((a, b) => b.level - a.level);
 
-    const topCount = badCandidates.length;
-    const topTargets = badCandidates.slice(0, topCount);
+    const topTargets = badCandidates.slice(0, BAD_MAX_FRIENDS_PER_RUN);
 
     log('好友',
       `找到 ${badCandidates.length} 个可捣乱的好友，处理等级最高的前${topTargets.length}个`,
@@ -940,6 +951,7 @@ async function runBadOnceOnStartup(force = false) {
 
     for (let i = 0; i < topTargets.length; i++) {
       const target = topTargets[i];
+      if (!isAutomationOn('friend_bad') || isFriendBadPaused()) break;
       if (!canOperateBad()) {
         log('好友', `放虫放草次数已用完，停止执行。已处理 ${processedCount} 个好友`, {
           module: 'friend',
@@ -982,7 +994,8 @@ async function runBadOnceOnStartup(force = false) {
           break;
         }
       }
-      await randomDelay(500, 1500);
+      // 处理完一家后间隔 20 秒再切换下一家
+      if (i < topTargets.length - 1) await sleep(BAD_FRIEND_INTERVAL_MS);
     }
 
     badExecutedOnStartup = true;
@@ -1005,7 +1018,23 @@ async function runBadOnceOnStartup(force = false) {
     if (!isTransientNetworkError(err)) {
       logWarn('好友', `${label}异常: ${err.message}`);
     }
+  } finally {
+    isBadRoutineRunning = false;
   }
+}
+
+/**
+ * 每半小时检查一次：仍有剩余捣乱次数才继续执行。
+ */
+async function runBadIfRemaining() {
+  if (isCheckingFriends || isBadRoutineRunning) return false;
+  if (!isAutomationOn('friend') || !isAutomationOn('friend_bad')) return false;
+  if (!isConnected()) return false;
+  if (inFriendQuietHours()) return false;
+  checkDailyReset();
+  if (!canOperateBad()) return false;
+  await runBadOnceOnStartup(true, '定时检查剩余捣乱次数');
+  return true;
 }
 
 // ===== Status queries =====
@@ -1070,6 +1099,7 @@ module.exports = {
   stopFriendCheckLoop,
   refreshFriendCheckLoop,
   runBadOnceOnStartup,
+  runBadIfRemaining,
   isHelpExpLimitReached,
   isCheckingFriendsRunning,
   clearFriendsListCache,

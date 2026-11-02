@@ -441,9 +441,8 @@ async function putPlantItemsDetailed(gid, landIds, RequestType, ReplyType, rpcMe
         });
       }
     }
-    if (ok > 0) {
-      await require('../utils/utils').randomDelay(500, 1000);
-    }
+    // 每个地块捣乱后固定间隔 0.5~1s（无论成功还是失败都等待）
+    await require('../utils/utils').randomDelay(500, 1000);
   }
 
   return { ok, failed };

@@ -979,6 +979,21 @@ function startMysteryShopAutoBuyTimer() {
     }, { preventOverlap: true });
 }
 
+// 好友捣乱：每 30 分钟检查一次剩余次数，有剩余则继续捣乱
+function stopFriendBadTimer() {
+    workerScheduler.clear('friend_bad_interval');
+}
+
+function startFriendBadTimer() {
+    stopFriendBadTimer();
+    workerScheduler.setIntervalTask('friend_bad_interval', 30 * 60 * 1000, () => {
+        if (!loginReady || friendSyncPaused) return;
+        if (getAutomation().friend_bad !== true) return;
+        if (inFriendQuietHours()) return;
+        require('../services/friend').runBadIfRemaining().catch(() => null);
+    }, { preventOverlap: true });
+}
+
 // ==================== 间隔计算 ====================
 
 function normalizeIntervalRangeSec(minVal, maxVal, defaultVal) {
@@ -1622,6 +1637,7 @@ async function startBot(config) {
         startDailyRoutineTimer();
         startStarActivityClaimTimer();
         startMysteryShopAutoBuyTimer();
+        startFriendBadTimer();
 
         syncStatus();
     };
@@ -1642,6 +1658,7 @@ async function stopBot() {
 
     stopUnifiedScheduler();
     stopMysteryShopAutoBuyTimer();
+    stopFriendBadTimer();
 
     networkEvents.off('kickout', onKickout);
     networkEvents.off('reconnect_failed', onReconnectFailed);
