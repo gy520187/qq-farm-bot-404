@@ -1318,12 +1318,12 @@ useIntervalFn(updateCountdowns, 1000)
   filter: drop-shadow(0 3px 6px rgba(31, 38, 80, 0.15));
 }
 
-/* 图标单独占一列，并在该列内居中；文字独占剩余一列并居中 */
+/* 图标单独占一列，并在该列内右对齐；文字独占剩余一列并居中 */
 .resource-icon-zone {
   flex: 0 0 30%;
   display: flex;
   align-items: center;
-  justify-content: center;
+  justify-content: flex-end;
 }
 
 .resource-info {
