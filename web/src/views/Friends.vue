@@ -57,8 +57,15 @@ const localKnownFriendGidSyncCooldownSec = ref(300)
 const localFriendsListCacheTtlSec = ref(60)
 const showBatchAddGidModal = ref(false)
 const batchGidInput = ref('')
+const batchInputMode = ref<'digits' | 'hex'>('digits')
+const batchHexInput = ref('')
+const hexDecoding = ref(false)
+const decodedHexGids = ref<number[]>([])
+const hexDecodeError = ref('')
 const showGidListModal = ref(false)
 const gidSearchKeyword = ref('')
+const gidListPage = ref(1)
+const gidListPageSize = 30
 const interactFilter = ref('all')
 const interactFilters = [
   { key: 'all', label: '全部' },
@@ -100,6 +107,15 @@ const filteredKnownFriendGids = computed(() => {
   return list.filter(item => String(item.gid).includes(keyword))
 })
 
+const paginatedKnownFriendGids = computed(() => {
+  const start = (gidListPage.value - 1) * gidListPageSize
+  return filteredKnownFriendGids.value.slice(start, start + gidListPageSize)
+})
+
+const gidListTotalPages = computed(() =>
+  Math.max(1, Math.ceil(filteredKnownFriendGids.value.length / gidListPageSize)),
+)
+
 const syncedGidCount = computed(() => filteredKnownFriendGids.value.filter(item => item.synced).length)
 const unsyncedGidCount = computed(() => filteredKnownFriendGids.value.filter(item => !item.synced).length)
 const hasAnyFriendData = computed(() =>
@@ -137,8 +153,13 @@ async function handleRemoveUnsyncedGids() {
 
 function openGidListModal() {
   gidSearchKeyword.value = ''
+  gidListPage.value = 1
   showGidListModal.value = true
 }
+
+watch(gidSearchKeyword, () => {
+  gidListPage.value = 1
+})
 
 function confirmAction(msg: string, action: () => Promise<any>) {
   confirmMessage.value = msg
@@ -614,18 +635,73 @@ function parseBatchGids(input: string): number[] {
   return gids
 }
 
+async function handleDecodeHexGids() {
+  if (!currentAccountId.value)
+    return
+  const hex = batchHexInput.value.trim()
+  if (!hex) {
+    toast.error('请输入 HEX 原始数据')
+    return
+  }
+  hexDecoding.value = true
+  hexDecodeError.value = ''
+  try {
+    const res = await api.post('/api/friend-known-gids/decode-hex', { hex }, {
+      headers: { 'x-account-id': currentAccountId.value },
+    })
+    if (res.data.ok) {
+      const gids: number[] = Array.isArray(res.data.gids) ? res.data.gids.map(Number) : []
+      if (gids.length === 0) {
+        hexDecodeError.value = res.data.message || '未提取到 GID'
+        decodedHexGids.value = []
+      } else {
+        decodedHexGids.value = gids
+        hexDecodeError.value = ''
+      }
+    } else {
+      hexDecodeError.value = res.data.error || '解码失败'
+      decodedHexGids.value = []
+    }
+  } catch (e: any) {
+    hexDecodeError.value = e?.response?.data?.error || e?.message || '解码失败'
+    decodedHexGids.value = []
+  } finally {
+    hexDecoding.value = false
+  }
+}
+
+function removeDecodedGid(gid: number) {
+  decodedHexGids.value = decodedHexGids.value.filter(item => item !== gid)
+}
+
+function switchBatchInputMode(mode: 'digits' | 'hex') {
+  batchInputMode.value = mode
+  hexDecodeError.value = ''
+}
+
+function resetBatchAddGidModal() {
+  batchGidInput.value = ''
+  batchHexInput.value = ''
+  batchInputMode.value = 'digits'
+  decodedHexGids.value = []
+  hexDecodeError.value = ''
+  showBatchAddGidModal.value = false
+}
+
 async function handleBatchAddKnownFriendGids() {
   if (!currentAccountId.value)
     return
-  const gids = parseBatchGids(batchGidInput.value)
+  const gids = Array.from(new Set([
+    ...parseBatchGids(batchGidInput.value),
+    ...decodedHexGids.value,
+  ]))
   if (gids.length === 0) {
     toast.error('请输入有效的 GID 列表')
     return
   }
   const result = await friendStore.batchAddKnownFriendGids(currentAccountId.value, gids)
   if (result.ok) {
-    batchGidInput.value = ''
-    showBatchAddGidModal.value = false
+    resetBatchAddGidModal()
     await refreshFriendsAfterKnownGidChange()
     toast.success(`已批量添加 ${result.addedCount} 个 GID`)
   }
@@ -989,36 +1065,113 @@ async function handleBatchAddKnownFriendGids() {
       <div
         v-if="showBatchAddGidModal"
         class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
-        @click.self="showBatchAddGidModal = false"
+        @click.self="resetBatchAddGidModal"
       >
         <div class="max-w-lg w-full rounded-lg bg-white p-6 shadow-xl dark:bg-gray-800">
           <h3 class="mb-4 text-lg text-gray-800 font-semibold dark:text-gray-100">
             批量新增 GID
           </h3>
-          <p class="mb-3 text-sm text-gray-500 dark:text-gray-400">
-            支持一行一个或用逗号/空格分隔，自动去重
-          </p>
-          <textarea
-            v-model="batchGidInput"
-            rows="8"
-            placeholder="每行一个 GID，或用逗号、空格分隔&#10;例如：&#10;12345678&#10;87654321&#10;或&#10;12345678, 87654321, 11111111"
-            class="mb-4 w-full border border-gray-300 rounded-lg bg-white p-3 text-sm dark:border-gray-600 focus:border-blue-500 dark:bg-gray-700 dark:text-white focus:outline-none focus:ring-1 focus:ring-blue-500"
-          />
+
+          <div class="mb-3 flex gap-2">
+            <button
+              class="rounded-full px-3 py-1 text-xs transition"
+              :class="batchInputMode === 'digits'
+                ? 'text-white'
+                : 'bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'"
+              :style="batchInputMode === 'digits' ? { backgroundColor: 'var(--theme-primary)' } : {}"
+              @click="switchBatchInputMode('digits')"
+            >
+              数字列表
+            </button>
+            <button
+              class="rounded-full px-3 py-1 text-xs transition"
+              :class="batchInputMode === 'hex'
+                ? 'text-white'
+                : 'bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'"
+              :style="batchInputMode === 'hex' ? { backgroundColor: 'var(--theme-primary)' } : {}"
+              @click="switchBatchInputMode('hex')"
+            >
+              HEX 原始数据
+            </button>
+          </div>
+
+          <template v-if="batchInputMode === 'digits'">
+            <p class="mb-3 text-sm text-gray-500 dark:text-gray-400">
+              支持一行一个或用逗号/空格分隔，自动去重
+            </p>
+            <textarea
+              v-model="batchGidInput"
+              rows="8"
+              placeholder="每行一个 GID，或用逗号、空格分隔&#10;例如：&#10;12345678&#10;87654321&#10;或&#10;12345678, 87654321, 11111111"
+              class="mb-4 w-full border border-gray-300 rounded-lg bg-white p-3 text-sm dark:border-gray-600 focus:border-blue-500 dark:bg-gray-700 dark:text-white focus:outline-none focus:ring-1 focus:ring-blue-500"
+            />
+          </template>
+
+          <template v-else>
+            <p class="mb-3 text-sm text-gray-500 dark:text-gray-400">
+              粘贴抓包 HEX 原始数据，解码器自动提取好友 GID（支持空格、换行与 0x 前缀）
+            </p>
+            <textarea
+              v-model="batchHexInput"
+              rows="6"
+              placeholder="例如：&#10;0a 15 0a 13 67 61 6d 65 70 62 2e 66 72 69 65 6e 64 70 62 2e ...&#10;或直接粘贴抓包导出的十六进制"
+              class="mb-3 w-full border border-gray-300 rounded-lg bg-white p-3 text-sm dark:border-gray-600 focus:border-blue-500 dark:bg-gray-700 dark:text-white focus:outline-none focus:ring-1 focus:ring-blue-500"
+            />
+            <div class="mb-3 flex gap-2">
+              <button
+                class="rounded-lg px-3 py-1.5 text-xs text-white transition disabled:opacity-50"
+                :disabled="hexDecoding || !batchHexInput.trim()"
+                :style="{ backgroundColor: 'var(--theme-primary)' }"
+                @click="handleDecodeHexGids"
+              >
+                <span v-if="hexDecoding" class="i-svg-spinners-90-ring-with-bg mr-1 inline-block align-text-bottom" />
+                解码提取 GID
+              </button>
+              <button
+                v-if="decodedHexGids.length > 0"
+                class="rounded-lg border border-gray-300 px-3 py-1.5 text-xs text-gray-600 transition hover:bg-gray-50 dark:border-gray-600 dark:text-gray-300 dark:hover:bg-gray-700"
+                @click="decodedHexGids = []; hexDecodeError = ''"
+              >
+                清空
+              </button>
+            </div>
+            <p v-if="hexDecodeError" class="mb-2 text-xs text-red-600 dark:text-red-400">
+              {{ hexDecodeError }}
+            </p>
+            <div v-if="decodedHexGids.length > 0" class="mb-4">
+              <p class="mb-2 text-xs text-gray-500 dark:text-gray-400">
+                已提取 {{ decodedHexGids.length }} 个 GID，点击可移除：
+              </p>
+              <div class="flex max-h-28 flex-wrap gap-1.5 overflow-y-auto">
+                <span
+                  v-for="gid in decodedHexGids"
+                  :key="gid"
+                  class="inline-flex items-center gap-1 rounded-full bg-blue-50 px-2 py-0.5 text-xs text-blue-700 dark:bg-blue-900/30 dark:text-blue-300"
+                >
+                  {{ gid }}
+                  <button class="text-blue-400 transition hover:text-red-500" @click="removeDecodedGid(gid)">
+                    <div class="i-carbon-close text-xs" />
+                  </button>
+                </span>
+              </div>
+            </div>
+          </template>
+
           <div class="flex justify-end gap-3">
             <button
               class="border border-gray-300 rounded-lg bg-white px-4 py-2 text-sm text-gray-700 transition dark:border-gray-600 dark:bg-gray-700 hover:bg-gray-50 dark:text-gray-300 dark:hover:bg-gray-600"
-              @click="showBatchAddGidModal = false"
+              @click="resetBatchAddGidModal"
             >
               取消
             </button>
             <button
               class="rounded-lg px-4 py-2 text-sm text-white transition disabled:opacity-50"
-              :disabled="knownFriendSettingsSaving || !batchGidInput.trim()"
+              :disabled="knownFriendSettingsSaving || (!batchGidInput.trim() && decodedHexGids.length === 0)"
               :style="{ backgroundColor: 'var(--theme-primary)' }"
               @click="handleBatchAddKnownFriendGids"
             >
-              <div v-if="knownFriendSettingsSaving" class="i-svg-spinners-90-ring-with-bg mr-1 inline-block align-text-bottom" />
-              确认添加
+              <span v-if="knownFriendSettingsSaving" class="i-svg-spinners-90-ring-with-bg mr-1 inline-block align-text-bottom" />
+              确认添加 ({{ Array.from(new Set([...parseBatchGids(batchGidInput), ...decodedHexGids])).length }})
             </button>
           </div>
         </div>
@@ -1074,7 +1227,7 @@ async function handleBatchAddKnownFriendGids() {
             </div>
             <div v-else class="grid gap-2 lg:grid-cols-3 sm:grid-cols-2">
               <div
-                v-for="item in filteredKnownFriendGids"
+                v-for="item in paginatedKnownFriendGids"
                 :key="item.gid"
                 class="flex items-center justify-between border rounded-lg p-2 transition"
                 :class="[
@@ -1111,6 +1264,31 @@ async function handleBatchAddKnownFriendGids() {
                   <div class="i-carbon-trash-can text-sm" />
                 </button>
               </div>
+            </div>
+          </div>
+
+          <div
+            v-if="filteredKnownFriendGids.length > 0"
+            class="shrink-0 flex items-center justify-between border-t border-gray-200 p-3 dark:border-gray-700"
+          >
+            <span class="text-xs text-gray-500 dark:text-gray-400">
+              第 {{ gidListPage }} / {{ gidListTotalPages }} 页 · 共 {{ filteredKnownFriendGids.length }} 个
+            </span>
+            <div class="flex gap-2">
+              <button
+                class="rounded-lg border border-gray-300 px-3 py-1.5 text-xs text-gray-600 transition hover:bg-gray-50 disabled:opacity-40 dark:border-gray-600 dark:text-gray-300 dark:hover:bg-gray-700"
+                :disabled="gidListPage <= 1"
+                @click="gidListPage--"
+              >
+                上一页
+              </button>
+              <button
+                class="rounded-lg border border-gray-300 px-3 py-1.5 text-xs text-gray-600 transition hover:bg-gray-50 disabled:opacity-40 dark:border-gray-600 dark:text-gray-300 dark:hover:bg-gray-700"
+                :disabled="gidListPage >= gidListTotalPages"
+                @click="gidListPage++"
+              >
+                下一页
+              </button>
             </div>
           </div>
         </div>

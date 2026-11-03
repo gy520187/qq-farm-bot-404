@@ -223,3 +223,23 @@
   开始；改为等价取反写法后构建警告消除。`npm run build`（含 `vue-tsc -b` 类型
   检查 + Vite 生产构建）通过，完整 core 测试 472/477（5 项失败仍为 gitignore
   生成素材缺失，与本次无关）。
+
+## 2026-11-03 好友批量新增 GID：HEX 解码提取与列表分页
+
+- 新增 `core/src/services/hex-protobuf-decoder.js`：不依赖 proto 定义的通用
+  Protobuf 解码器，支持 Varint（含 10 字节负数）、64/32 位定长、
+  Length-delimited 嵌套消息/UTF-8 文本自动识别；检测到
+  `gamepb.friendpb.FriendService` 时按在线解码器规则提取好友 GID（GateMessage
+  顶层字段 2 的 body 中，字段 1 repeated GameFriend 的字段 1），也兼容用户直接
+  粘贴裸回复体（未含服务标识时按字段 1 数组提取）。
+- 新增 `POST /api/friend-known-gids/decode-hex`：接收 HEX 原始数据，返回提取的
+  GID 列表与提示。
+- 前端 `Friends.vue` 批量新增 GID 弹窗增加「数字列表 / HEX 原始数据」模式切换：
+  HEX 模式粘贴抓包数据一键解码提取 GID，结果以可移除 chips 展示，确认添加时与
+  数字输入合并去重。
+- 「已导入的 GID 列表」弹窗新增分页（每页 30 个），搜索关键字变化自动回到
+  第一页。
+- 测试：`core/test/hex-protobuf-decoder.test.js` 12/12 通过（Varint/字符串/嵌套/
+  GateMessage/裸回复体/去重/过滤/非法输入）；完整 core 测试 485/490（5 项失败仍为
+  gitignore 生成素材缺失，与本次无关）；前端 `vue-tsc -b` + `vite build` 通过
+  （exit 0）。

@@ -1,4 +1,5 @@
 const DOG_INFO_HTTP_TIMEOUT_MS = 11 * 60 * 1000;
+const { extractFriendGidsFromHex } = require('../services/hex-protobuf-decoder');
 
 function getAccountOrRespond(req, res, { getAccountIdFromRequest, canAccessAccount, includeMissingMessage = true }) {
   const accountId = getAccountIdFromRequest(req);
@@ -276,6 +277,30 @@ function registerAdminFriendRoutes({
       }
       broadcastConfig(provider, accountId);
       res.json({ ok: true, data: getKnownFriendGidsData(store, accountId) });
+    } catch (error) {
+      sendProviderError(res, error);
+    }
+  });
+
+  app.post("/api/friend-known-gids/decode-hex", (req, res) => {
+    const accountId = getAccountOrRespond(req, res, access);
+    if (!accountId) return;
+
+    try {
+      const hex = String((req.body || {}).hex || '').trim();
+      if (!hex) {
+        return res.status(400).json({ ok: false, error: "HEX 数据不能为空" });
+      }
+      const result = extractFriendGidsFromHex(hex);
+      res.json({
+        ok: true,
+        gids: result.gids,
+        source: result.source,
+        count: result.gids.length,
+        message: result.message || (result.gids.length > 0
+          ? `解码成功，提取到 ${result.gids.length} 个好友 GID`
+          : '未提取到 GID'),
+      });
     } catch (error) {
       sendProviderError(res, error);
     }
