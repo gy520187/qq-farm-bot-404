@@ -135,3 +135,91 @@
   `core/docs/activity-update-runbook.md`，并新增
   `npm run inspect:activity-har -- <HAR>` 脱敏检查命令，后续活动按“完整抓包、协议表、
   官方资源、种子/植物/果实映射、分层接入、离线与在线验收”流程更新。
+
+## 2026-11-03 珍藏室/藏品系统与藏品礼包商城素材
+
+- 官方 2026-11-01 起上线“珍藏室/藏品”系统：仅 **6 级蓝晶土地** 作物可触发
+  **藏品变异**（`MutantEffect` id=18，tag=藏品，本地官方包枚举 25），藏品品质随
+  作物品质（普通/稀有/珍品/天工）而定。催化剂 5011-5014（普通/稀有/珍品/天工）
+  可对未成熟对应品质作物立即触发藏品变异；藏品可在场景中展示（珍藏室）。
+- 官方限时商店新增藏品礼包：`Mall` 1047 钻石藏品礼包（40 钻石，物品 101618）、
+  1048 金豆豆藏品礼包（300 金豆豆，物品 101619），2026-11-02 10:00 起售，各限购
+  50 次。金豆豆货币 id=1005，由出售**黄金果实**（`MutantEffect` id=5 黄金变异
+  产出）获得，可在商城购买高级商品。
+- 项目已提前完成珍藏室只读适配：`gameConfig/collections/` 10 张配置表、
+  `collectionpb.proto`（`CollectionService.GetCollections`，category=1）、
+  `services/collections.js`（系列/星级/里程碑/展台/许愿/展示归一化）、
+  `admin-collections-routes.js`（`/api/collections`、`/api/illustrated/mutations`）、
+  前端 `Illustrated.vue`“藏品”页签 + `CollectionsPanel.vue`、`collections.ts` store。
+  写操作（激活/升星/领奖/许愿/换展台）尚未恢复协议，保持只读。
+- 本次补齐藏品礼包商城素材：从官方 CDN 下载
+  `mall-1047_icon_timeLimitShop_gift8.png`、`mall-1048_icon_timeLimitShop_gift9.png`
+  到 `plugins/material-plugin/assets/seed_images_named/`；`MallImageSupplement.json`
+  新增 1047/1048 条目（含 URL/sha256）；`assets-map.json` 同步 +2 条（3211）；
+  素材插件版本 bump 1.3.0 → 1.3.1。`mall-images-availability.test.js` 断言
+  8 → 10 并 4/4 通过；`plugin-host.test.js` 7/7 通过。完整 core 测试 458/463，
+  5 项失败均为 gitignore 生成素材缺失（illustrated-fruit-sources 等），与本次改动无关。
+- 待办：收藏系统写操作协议恢复需新的 WS 抓包（当前 `farm.har` 无
+  `_webSocketMessages`）及真实账号授权；金豆豆已在前端 `useShopAvailability.ts`/
+  `Shop.vue` 支持（1005 余额、金豆豆不足提示），藏品礼包经 `shouldExposeMallGoods`
+  活动商品规则自动展示。
+
+## 2026-11-03 自动购买藏品礼包
+
+- 新增常驻自动化开关 `collection_gift_buy`（默认关闭）：自动购买限时商店藏品礼包
+  `Mall` 1047 钻石藏品礼包（40 钻石）与 1048 金豆豆藏品礼包（300 金豆豆）。
+- 藏品礼包为**每周限购 50 个**（服务端 `limit` 字段返回本周已购/总额）。
+  新增 `core/src/services/collection-gift-auto-buy.js`：纯函数
+  `getCollectionGiftPurchase` 校验商品 ID/结束时间/每周剩余额度/价格货币/
+  余额，返回值为**本周剩余额度**（余额不足以买满剩余额度时整轮跳过），
+  带 10 分钟冷却与 busy 锁；`createCollectionGiftBuyer` 工厂注入依赖便于
+  测试，购买后重新读取余额。
+- `core/src/models/store.js` `DEFAULT_AUTOMATION` 新增 `collection_gift_buy: false`；
+  `core/src/core/worker.js` 新增 `start/stop/runCollectionGiftAutoBuyTimer`，
+  在账号登录就绪后与神秘商人一样每 10 分钟检查一次（首次 10 秒）。
+- 前端：`useAutomationSettings.ts` 默认值、`AutomationSettingsTab.vue` 新增
+  “自动购买藏品礼包”开关；`AccountFeatureSettings.vue` 日常与活动模块新增
+  “藏品礼包”卡片（含说明），`activityKeys`/`summaryTags` 同步纳入。
+- 测试：`core/test/collection-gift-auto-buy.test.js` 8/8 通过（开关/冷却/force/
+  每周剩余额度/余额不足整轮跳过/失败可观测/查询中关闭）；商城相关回归 12/12
+  通过；完整 core 测试
+  466/471（5 项失败仍为 gitignore 生成素材缺失，与本次无关）。前端
+  `vue-tsc -b` + `vite build` 通过（exit 0）。
+
+## 2026-11-03 自动开启藏品礼包
+
+- 新增常驻自动化开关 `collection_gift_open`（默认关闭）：自动开启背包中的藏品
+  礼包物品 101618（钻石藏品礼包）/ 101619（金豆豆藏品礼包），获得藏品、催化剂、
+  种子礼包与金币。
+- 新增 `core/src/services/collection-gift-open.js`：纯函数
+  `getCollectionGiftOpenPayloads` 从背包提取礼包数量；`createCollectionGiftOpener`
+  工厂注入依赖便于测试，10 分钟冷却 + busy 锁，失败可观测，查询中关闭开关会停止
+  继续开启。复用 `warehouse.getBag`/`getBagItems`/`batchUseItems` 协议链路
+  （`ItemService.BatchUse`）。
+- `core/src/models/store.js` `DEFAULT_AUTOMATION` 新增 `collection_gift_open: false`；
+  `core/src/core/worker.js` 新增 `start/stop/runCollectionGiftOpenTimer`（与自动
+  购买同节奏，10 分钟一次）。
+- 前端：`useAutomationSettings.ts` 默认值、`AutomationSettingsTab.vue` 新增
+  “自动开启藏品礼包”开关；`AccountFeatureSettings.vue` 藏品礼包卡片新增该开关，
+  `activityKeys`/`summaryTags` 同步纳入。
+- 测试：`core/test/collection-gift-open.test.js` 6/6 通过（开关/冷却/force/无礼包
+  跳过/失败可观测/查询中关闭）；连同自动购买 14/14 通过。完整 core 测试
+  472/477（5 项失败仍为 gitignore 生成素材缺失，与本次无关）；前端
+  `vue-tsc -b` + `vite build` 通过（exit 0）。
+
+## 2026-11-03 持久化 QQ 扫码登录开关并优化活动中心目录
+
+- 修复 `core/src/models/store.js` `setSystemConfig` 未持久化
+  `napcatLoginEnabled`：保存开关后 `/api/napcat-login/capability` 仍返回
+  false，导致「新增账号 → QQ 扫码」不可用。现新增严格布尔字段
+  `napcatLoginEnabled`（缺省沿用当前值，不影响只带部分字段的旧调用方）。
+- 新增测试 `core/test/system-config-napcat-login.test.js`：覆盖开启、部分保存
+  沿用、关闭三种场景，单测通过。
+- 修复 `web/src/views/Activity.vue` 活动中心出现"开启新田园"未适配活动卡片：
+  新增 `hiddenActivityTitleKeywords` 按标题关键字过滤官方未适配详情且无需入口
+  的活动。
+- 修复构建警告 `[unocss] failed to load icon "carbon-calendar-adapted"`：根因是
+  `group.startTime <= item.endTime` 的 `<=` 被 UnoCSS attributify 误判为标签
+  开始；改为等价取反写法后构建警告消除。`npm run build`（含 `vue-tsc -b` 类型
+  检查 + Vite 生产构建）通过，完整 core 测试 472/477（5 项失败仍为 gitignore
+  生成素材缺失，与本次无关）。

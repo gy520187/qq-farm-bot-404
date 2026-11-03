@@ -304,6 +304,8 @@ const DEFAULT_AUTOMATION = {
     mystery_shop_allow_gold: true,
     mystery_shop_allow_coupon: false,
     mystery_shop_allow_gold_bean: false,
+    collection_gift_buy: false,
+    collection_gift_open: false,
     sell: false,
     fertilizer: 'smart_normal',
     fertilizer_multi_season: true,
@@ -2067,7 +2069,10 @@ function setSystemConfig(config) {
         clientVersion: String(config.clientVersion ?? current.clientVersion ?? '').trim(),
         wxClientVersion: String(config.wxClientVersion ?? current.wxClientVersion ?? '').trim(),
         platform: String(config.platform ?? current.platform ?? 'qq').trim(),
-        os: String(config.os ?? current.os ?? 'iOS').trim()
+        os: String(config.os ?? current.os ?? 'iOS').trim(),
+        napcatLoginEnabled: typeof config.napcatLoginEnabled === 'boolean'
+            ? config.napcatLoginEnabled
+            : (current.napcatLoginEnabled === true)
     };
     saveGlobalConfig();
     return { ...globalConfig.systemConfig };

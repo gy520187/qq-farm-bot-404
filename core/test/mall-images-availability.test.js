@@ -26,9 +26,9 @@ async function listGoods(discounts, balances) {
   return result.data;
 }
 
-test('all eight mall goods resolve existing official images and verified sources', async () => {
+test('all ten mall goods resolve existing official images and verified sources', async () => {
   const goods = await listGoods(sources.entries.map(entry => ({ goods_id: entry.goodsId, is_activity: true })), {});
-  assert.equal(goods.length, 8);
+  assert.equal(goods.length, 10);
   for (const item of goods) {
     assert.ok(item.images.length, String(item.goodsId));
     for (const url of item.images) assert.ok(assetExists(url), `素材文件缺失: ${url}`);

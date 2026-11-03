@@ -80,6 +80,8 @@ const fertilizerName = computed(() => props.fertilizerOptions.find(item => item.
 const selectedLandNames = computed(() => props.fertilizerLandTypeOptions.filter(item => automation.value.automation.fertilizer_land_types?.includes(item.value)).map(item => item.label))
 const selectedLandTypeCount = computed(() => Array.isArray(automation.value.automation.fertilizer_land_types) ? automation.value.automation.fertilizer_land_types.length : 0)
 const activityKeys = computed(() => [
+  'collection_gift_buy',
+  'collection_gift_open',
   ...pluginAutomationKeys.value,
   ...(showRainPoemActivity.value
     ? ['rain_poem_bottle_buy', 'rain_poem_weather_collect', 'rain_poem_summon_use', 'rain_poem_prank_use', 'rain_poem_research_unlock']
@@ -163,6 +165,8 @@ function summaryTags(key: ModuleKey) {
   }
   return [
     automation.value.automation.task ? '自动完成日常任务' : '不做日常',
+    automation.value.automation.collection_gift_buy && '自动购买藏品礼包',
+    automation.value.automation.collection_gift_open && '自动开启藏品礼包',
     SHOW_STAR_ACTIVITY && starFestivalEnabled.value && '心许千灯星垂野',
     SHOW_QIXI_ACTIVITY && qixiActivityEnabled.value && '鹊桥寄情',
     showRainPoemActivity.value && rainPoemActivityEnabled.value && '雨落成诗',
@@ -604,6 +608,21 @@ watch(() => props.currentAccountId, loadQixiFriends)
                 </div>
                 <div class="grid gap-3 sm:grid-cols-2">
                   <BaseSwitch v-model="automation.automation.task" label="自动完成日常任务" />
+                </div>
+              </section>
+
+              <section class="border border-amber-100 rounded-lg p-4 space-y-3 dark:border-amber-900/40">
+                <div>
+                  <div class="text-sm text-gray-700 font-medium dark:text-gray-300">
+                    藏品礼包
+                  </div>
+                  <div class="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                    自动购买限时商店藏品礼包（钻石/金豆豆），每周限购 50 个，每次买满本周剩余额度；购买后自动开启礼包获得藏品；余额不足时自动跳过。
+                  </div>
+                </div>
+                <div class="grid gap-3 sm:grid-cols-2">
+                  <BaseSwitch v-model="automation.automation.collection_gift_buy" label="自动购买藏品礼包" />
+                  <BaseSwitch v-model="automation.automation.collection_gift_open" label="自动开启藏品礼包" />
                 </div>
               </section>
 

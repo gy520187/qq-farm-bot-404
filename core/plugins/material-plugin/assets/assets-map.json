@@ -16043,5 +16043,15 @@
     "file": "effect_images/mutant/jinghui/star.png",
     "sha256": "deb71f4e7129013114ae9778c9f9fd489dfb3d958b1dc098f245d0664f3101f1",
     "size": 36424
+  },
+  {
+    "file": "seed_images_named/mall-1047_icon_timeLimitShop_gift8.png",
+    "sha256": "2d9d78b172a5a2d9273838073c0a75bc69efd9aa8366221aab4fb10cdea1362e",
+    "size": 18306
+  },
+  {
+    "file": "seed_images_named/mall-1048_icon_timeLimitShop_gift9.png",
+    "sha256": "2f1c9cbced048cb73ee4c6b8599c089c11faf3ce44f2263e00eac9235addcf05",
+    "size": 19061
   }
 ]

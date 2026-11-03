@@ -57,6 +57,8 @@ interface AutomationSettings {
     mystery_shop_allow_gold: boolean
     mystery_shop_allow_coupon: boolean
     mystery_shop_allow_gold_bean: boolean
+    collection_gift_buy: boolean
+    collection_gift_open: boolean
     fertilizer: string
     skip_own_weed_bug: boolean
     fertilizer_multi_season: boolean
@@ -217,6 +219,8 @@ watch(() => props.currentAccountId, loadQixiFriends)
         </section>
         <BaseSwitch v-model="settings.automation.fertilizer_buy_organic" label="自动购买有机化肥" />
         <BaseSwitch v-model="settings.automation.fertilizer_buy_normal" label="自动购买无机化肥" />
+        <BaseSwitch v-model="settings.automation.collection_gift_buy" label="自动购买藏品礼包" />
+        <BaseSwitch v-model="settings.automation.collection_gift_open" label="自动开启藏品礼包" />
         <div class="max-w-full w-fit inline-flex items-center gap-1.5">
           <BaseSwitch v-model="settings.automation.mystery_shop_auto_buy" label="自动购买神秘商人商品" />
           <button

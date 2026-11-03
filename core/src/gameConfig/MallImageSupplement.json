@@ -81,6 +81,26 @@
         80001,
         80011
       ]
+    },
+    {
+      "goodsId": 1047,
+      "name": "钻石藏品礼包",
+      "itemIds": [
+        101618
+      ],
+      "file": "mall-1047_icon_timeLimitShop_gift8.png",
+      "url": "https://cdn-resource.nqf.qq.com/release/remote/extraRes/native/ab/abe6e716-c450-40fc-b05e-7b48b9f08b54.442f2.png",
+      "sha256": "2d9d78b172a5a2d9273838073c0a75bc69efd9aa8366221aab4fb10cdea1362e"
+    },
+    {
+      "goodsId": 1048,
+      "name": "金豆豆藏品礼包",
+      "itemIds": [
+        101619
+      ],
+      "file": "mall-1048_icon_timeLimitShop_gift9.png",
+      "url": "https://cdn-resource.nqf.qq.com/release/remote/extraRes/native/73/734e6339-74b5-42de-9578-74a8a3349be8.ae825.png",
+      "sha256": "2f1c9cbced048cb73ee4c6b8599c089c11faf3ce44f2263e00eac9235addcf05"
     }
   ]
 }

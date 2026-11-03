@@ -79,6 +79,8 @@ const defaultAutomation = {
   mystery_shop_allow_gold: true,
   mystery_shop_allow_coupon: false,
   mystery_shop_allow_gold_bean: false,
+  collection_gift_buy: false,
+  collection_gift_open: false,
   fertilizer: 'none',
   skip_own_weed_bug: false,
   fertilizer_multi_season: false,

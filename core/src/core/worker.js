@@ -979,6 +979,53 @@ function startMysteryShopAutoBuyTimer() {
     }, { preventOverlap: true });
 }
 
+// 藏品礼包是限时商店商品（钻石/金豆豆），登录后定期检查余额与限购次数，
+// 每次只购买 1 个，避免一次性消耗过多付费货币。
+function stopCollectionGiftAutoBuyTimer() {
+    workerScheduler.clear('collection_gift_auto_buy_initial');
+    workerScheduler.clear('collection_gift_auto_buy_interval');
+}
+
+function runCollectionGiftAutoBuy() {
+    if (!loginReady || getAutomation().collection_gift_buy !== true) return Promise.resolve();
+    const { autoBuyCollectionGifts } = require('../services/collection-gift-auto-buy');
+    return autoBuyCollectionGifts();
+}
+
+function startCollectionGiftAutoBuyTimer() {
+    const { COLLECTION_GIFT_CHECK_INTERVAL_MS } = require('../services/collection-gift-auto-buy');
+    stopCollectionGiftAutoBuyTimer();
+    workerScheduler.setTimeoutTask('collection_gift_auto_buy_initial', 10000, () => {
+        runCollectionGiftAutoBuy().catch(() => null);
+    });
+    workerScheduler.setIntervalTask('collection_gift_auto_buy_interval', COLLECTION_GIFT_CHECK_INTERVAL_MS, () => {
+        runCollectionGiftAutoBuy().catch(() => null);
+    }, { preventOverlap: true });
+}
+
+// 藏品礼包购买后需在背包中开启；定期检查背包中的礼包并全部开启。
+function stopCollectionGiftOpenTimer() {
+    workerScheduler.clear('collection_gift_open_initial');
+    workerScheduler.clear('collection_gift_open_interval');
+}
+
+function runCollectionGiftOpen() {
+    if (!loginReady || getAutomation().collection_gift_open !== true) return Promise.resolve();
+    const { autoOpenCollectionGifts } = require('../services/collection-gift-open');
+    return autoOpenCollectionGifts();
+}
+
+function startCollectionGiftOpenTimer() {
+    const { COLLECTION_GIFT_OPEN_INTERVAL_MS } = require('../services/collection-gift-open');
+    stopCollectionGiftOpenTimer();
+    workerScheduler.setTimeoutTask('collection_gift_open_initial', 10000, () => {
+        runCollectionGiftOpen().catch(() => null);
+    });
+    workerScheduler.setIntervalTask('collection_gift_open_interval', COLLECTION_GIFT_OPEN_INTERVAL_MS, () => {
+        runCollectionGiftOpen().catch(() => null);
+    }, { preventOverlap: true });
+}
+
 // 好友捣乱：每 30 分钟检查一次剩余次数，有剩余则继续捣乱
 function stopFriendBadTimer() {
     workerScheduler.clear('friend_bad_interval');
@@ -1637,6 +1684,8 @@ async function startBot(config) {
         startDailyRoutineTimer();
         startStarActivityClaimTimer();
         startMysteryShopAutoBuyTimer();
+        startCollectionGiftAutoBuyTimer();
+        startCollectionGiftOpenTimer();
         startFriendBadTimer();
 
         syncStatus();
@@ -1658,6 +1707,8 @@ async function stopBot() {
 
     stopUnifiedScheduler();
     stopMysteryShopAutoBuyTimer();
+    stopCollectionGiftAutoBuyTimer();
+    stopCollectionGiftOpenTimer();
     stopFriendBadTimer();
 
     networkEvents.off('kickout', onKickout);

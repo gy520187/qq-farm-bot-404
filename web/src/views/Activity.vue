@@ -184,7 +184,8 @@ const activityCards = computed(() => {
   const groups: Array<{ id: number, title: string, startTime: number, endTime: number, imageUrl?: string, activityIds: number[] }> = []
   for (const item of activityDirectoryWindows.value) {
     const existing = groups.find(group => group.title === item.title
-      && group.startTime <= item.endTime && item.startTime <= group.endTime)
+      // 区间重叠判断；用取反写法避免 `<=` 被 UnoCSS attributify 误当作标签开始
+      && !(group.startTime > item.endTime || item.startTime > group.endTime))
     if (existing) {
       existing.activityIds.push(item.id)
       existing.startTime = Math.min(existing.startTime, item.startTime)
@@ -209,7 +210,11 @@ const activityCards = computed(() => {
       }]
   // 已启用插件声明的活动由插件卡片唯一呈现，目录不再重复出卡（避免同一活动双卡片）
   const pluginOwnedIds = new Set(pluginsStore.enabledPlugins.flatMap(plugin => plugin.activityIds))
-  const directoryGroups = source.filter(group => !group.activityIds.some(id => pluginOwnedIds.has(id)))
+  // 官方未适配详情且无需入口的活动标题，不在活动中心展示（如“开启新田园”）
+  const hiddenActivityTitleKeywords = ['开启新田园']
+  const directoryGroups = source
+    .filter(group => !group.activityIds.some(id => pluginOwnedIds.has(id)))
+    .filter(group => !hiddenActivityTitleKeywords.some(keyword => (group.title || '').includes(keyword)))
   const cards = directoryGroups.map((group) => {
     const adaptedKey = group.id === 2026090100
       ? 'pet-diary' as const
