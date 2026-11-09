@@ -3,11 +3,11 @@ const crypto = require('node:crypto');
 const path = require('node:path');
 const test = require('node:test');
 const { getItemById, getItemImageById, getPlantByFruitId } = require('../src/config/gameConfig');
-const sources = require('../src/gameConfig/seed_images_named/illustrated-fruit-sources.json');
+const sources = require('../plugins/material-plugin/assets/seed_images_named/illustrated-fruit-sources.json');
 const { readAsset } = require('./_asset-resolver');
 
 function assertImageReadable(url) {
-  assert.match(url, /^\/game-config\/seed_images_named\/\d+[^/]*\.png$/);
+  assert.match(url, /^\/game-config\/seed_images_named\/\d[^/]*\.png$/);
   const bytes = readAsset(url);
   assert.equal(bytes.subarray(0, 8).toString('hex'), '89504e470d0a1a0a');
 }

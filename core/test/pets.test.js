@@ -34,7 +34,7 @@ test('capital mode detects already harvestable land immediately', () => {
 test('bichon metadata and official image resolve for owned and unowned pets', () => {
   const crypto = require('node:crypto');
   const { getItemById, getItemImageById } = require('../src/config/gameConfig');
-  const { entries } = require('../src/gameConfig/seed_images_named/pet-sources.json');
+  const { entries } = require('../plugins/material-plugin/assets/seed_images_named/pet-sources.json');
   const source = entries.find(entry => entry.id === 90031);
   const image = getItemImageById(90031);
   assert.equal(getItemById(90031).name, '比熊犬');

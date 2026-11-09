@@ -2,10 +2,10 @@ const assert = require('node:assert/strict');
 const test = require('node:test');
 const path = require('node:path');
 const crypto = require('node:crypto');
-const { assetExists, readAsset } = require('./_asset-resolver');
+const { readAsset } = require('./_asset-resolver');
 const { getMutantEffectById, getMutantEffectByIcon, getMutantEffectsByIds } = require('../src/config/gameConfig');
 const { getPlantMutantConfigIds } = require('../src/services/farm-land-analyzer');
-const { images } = require('../src/gameConfig/seed_images_named/mutant/pet-diary-sources.json');
+const { images } = require('../plugins/material-plugin/assets/seed_images_named/mutant/pet-diary-sources.json');
 
 test('pet diary mutations resolve numeric and protocol string IDs with local icons', () => {
   assert.deepEqual(getMutantEffectsByIds([14, '15', 16, 999999]).map(row => [row.id, row.name, row.icon]), [
@@ -28,6 +28,7 @@ test('pet diary mutations resolve numeric and protocol string IDs with local ico
 });
 
 test('own land resolves bichon mutation from plant and current phase records', () => {
+  // 顺序语义：阶段级实际生效的变异在前，全量 config_ids 只补充阶段级没有的变异。
   assert.deepEqual(getPlantMutantConfigIds({
     mutant_config_ids: ['14', 15],
   }, {
@@ -36,7 +37,7 @@ test('own land resolves bichon mutation from plant and current phase records', (
       { mutant_config_id: 16 },
       { mutant_config_id: 0 },
     ],
-  }), [14, 15, 16]);
+  }), [15, 16, 14]);
 
   const bichon = getMutantEffectsByIds(getPlantMutantConfigIds({}, {
     mutants: [{ mutant_config_id: 15 }],

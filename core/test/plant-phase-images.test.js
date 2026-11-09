@@ -1,7 +1,7 @@
 const path = require('node:path');
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const { assetExists, readAsset, resolveAssetPath } = require('./_asset-resolver');
+const { assetExists, readAsset } = require('./_asset-resolver');
 
 const {
     getMutantDisplayPlantId,
@@ -77,7 +77,7 @@ test('supplemental crops resolve local seed icons and every growth phase', () =>
         assert.equal(plant?.size, size);
         const seedImage = getSeedImageBySeedId(seedId);
         // 只校验 URL 前缀和文件可读，不硬编码具体命名格式
-        assert.match(seedImage, /^\/game-config\/seed_images_named\/\d+[^/]*\.png$/);
+        assert.match(seedImage, /^\/game-config\/seed_images_named\/\d[^/]*\.png$/);
         const images = [seedImage];
         assert.equal(getPlantImageByPhase(plant.id, 1), '/game-config/plant_images/common/seed.png');
         for (let phase = 2; phase <= (size === 2 ? 7 : 6); phase += 1) {
@@ -121,7 +121,7 @@ test('新增图鉴作物及变异均提供土地阶段图和正确占地', () =>
 
 test('新增土地阶段素材来源清单和本地摘要一致', () => {
     const crypto = require('node:crypto');
-    const sources = require('../src/gameConfig/plant_images/milk-tea-phase-sources.json');
+    const sources = require('../plugins/material-plugin/assets/plant_images/milk-tea-phase-sources.json');
     for (const item of sources.items) {
         assert.match(item.sourceUrl, /^https:\/\/cdn-resource\.nqf\.qq\.com\//);
         const bytes = readAsset(path.join('plant_images', item.file));

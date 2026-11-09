@@ -2,9 +2,9 @@ const assert = require('node:assert/strict');
 const crypto = require('node:crypto');
 const path = require('node:path');
 const test = require('node:test');
-const { assetExists, readAsset } = require('./_asset-resolver');
+const { readAsset } = require('./_asset-resolver');
 const { getItemById, getItemImageById } = require('../src/config/gameConfig');
-const sources = require('../src/gameConfig/seed_images_named/pet-diary-sources.json');
+const sources = require('../plugins/material-plugin/assets/seed_images_named/pet-diary-sources.json');
 
 test('pet diary and seasonal reward items resolve verified official local images', () => {
   assert.deepEqual(sources.entries.map(entry => entry.id).sort((a, b) => a - b),
