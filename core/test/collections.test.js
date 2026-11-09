@@ -111,6 +111,100 @@ test('collectionpb 编解码往返后 normalizeCollections 正确处理 int64', 
   assert.equal(snapshot.score, 1500);
 });
 
+test('藏品写操作前置校验（不连网，固定快照）', () => {
+  const { assertCanUpgrade, assertCanDisplay, assertClaimable } = require('../src/services/collections');
+
+  const makeSnapshot = (overrides = {}) => ({
+    milestones: [],
+    series: [{
+      id: 3001,
+      items: [{
+        id: 730004,
+        name: '鹊桥仙',
+        ownCount: '1',
+        activated: false,
+        starLevel: 0,
+        maxStarLevel: 5,
+        nextStarCosts: [{ itemId: 730004, count: '1' }],
+      }],
+    }],
+    ...overrides,
+  });
+
+  // 未获得不可激活
+  const missing = makeSnapshot();
+  missing.series[0].items[0].ownCount = '0';
+  assert.throws(() => assertCanUpgrade(missing, 730004), /尚未获得/);
+
+  // 持有足够可激活
+  const pending = makeSnapshot();
+  assert.doesNotThrow(() => assertCanUpgrade(pending, 730004));
+
+  // 已激活但道具不足不可升星
+  const insufficient = makeSnapshot();
+  insufficient.series[0].items[0].activated = true;
+  insufficient.series[0].items[0].starLevel = 1;
+  insufficient.series[0].items[0].ownCount = '0';
+  assert.throws(() => assertCanUpgrade(insufficient, 730004), /道具不足/);
+
+  // 满星不可升
+  const maxed = makeSnapshot();
+  maxed.series[0].items[0].activated = true;
+  maxed.series[0].items[0].starLevel = 5;
+  maxed.series[0].items[0].ownCount = '10';
+  assert.throws(() => assertCanUpgrade(maxed, 730004), /已达最高星级/);
+
+  // 未激活不可展示
+  assert.throws(() => assertCanDisplay(makeSnapshot(), 730004), /尚未激活/);
+  const activated = makeSnapshot();
+  activated.series[0].items[0].activated = true;
+  assert.doesNotThrow(() => assertCanDisplay(activated, 730004));
+
+  // 无可领奖励
+  assert.throws(() => assertClaimable(makeSnapshot()), /没有可领取/);
+  const claimable = makeSnapshot({ milestones: [{ reached: true, claimed: false }] });
+  assert.doesNotThrow(() => assertClaimable(claimable));
+  const allClaimed = makeSnapshot({ milestones: [{ reached: true, claimed: true }] });
+  assert.throws(() => assertClaimable(allClaimed), /没有可领取/);
+});
+
+test('藏品写操作协议固定 hex 回归（2026-11-09 抓包解密）', async () => {
+  const root = new protobuf.Root();
+  await root.load([path.join(__dirname, '../src/proto/collectionpb.proto')], { keepCase: true });
+
+  // UpgradeCollection：请求 {1: category=1, 2: collection_id=730004}
+  const UpgradeReq = root.lookupType('gamepb.collectionpb.UpgradeCollectionRequest');
+  const upgradeReqHex = Buffer.from(UpgradeReq.encode(UpgradeReq.create({ category: 1, collection_id: 730004 })).finish()).toString('hex');
+  assert.equal(upgradeReqHex, '08011094c72c');
+
+  // UpgradeCollection 回复 {1: 1, 2: 730004, 3: star_level=1, 4: current_score=4400}
+  const UpgradeRsp = root.lookupType('gamepb.collectionpb.UpgradeCollectionReply');
+  const upgradeDecoded = UpgradeRsp.toObject(UpgradeRsp.decode(Buffer.from('08011094c72c180120b022', 'hex')), { longs: String });
+  assert.deepEqual(upgradeDecoded, { category: '1', collection_id: '730004', star_level: '1', current_score: '4400' });
+
+  // SwitchSceneDisplay：请求 {1: DisplaySlot{1: slot_type=1, 2: DisplayInfo{1: category, 2: item_id, 3: pedestal_id=0}}}
+  const DisplayReq = root.lookupType('gamepb.collectionpb.SwitchSceneDisplayRequest');
+  const displayReqHex = Buffer.from(DisplayReq.encode(DisplayReq.create({
+    display_slot: { slot_type: 1, display: { category: 1, item_id: 730004, pedestal_id: 0 } },
+  })).finish()).toString('hex');
+  assert.equal(displayReqHex, '0a0c0801120808011094c72c1800');
+
+  // SwitchSceneDisplay 回复 {1: DisplaySlot{1: slot_type=1, 2: DisplayInfo{1: category, 2: item_id}}}
+  const DisplayRsp = root.lookupType('gamepb.collectionpb.SwitchSceneDisplayReply');
+  const displayDecoded = DisplayRsp.toObject(DisplayRsp.decode(Buffer.from('0a0a0801120608011094c72c', 'hex')), { longs: String });
+  assert.deepEqual(displayDecoded, { display_slot: { slot_type: 1, display: { category: 1, item_id: '730004' } } });
+
+  // ClaimCollectionReward：请求 {1: category=1}
+  const ClaimReq = root.lookupType('gamepb.collectionpb.ClaimCollectionRewardRequest');
+  const claimReqHex = Buffer.from(ClaimReq.encode(ClaimReq.create({ category: 1 })).finish()).toString('hex');
+  assert.equal(claimReqHex, '0801');
+
+  // ClaimCollectionReward 回复 {2: current_score=4400, 3: claimed_reward_score=4300, 4: packed [2000,3100,4300]}
+  const ClaimRsp = root.lookupType('gamepb.collectionpb.ClaimCollectionRewardReply');
+  const claimDecoded = ClaimRsp.toObject(ClaimRsp.decode(Buffer.from('10b02218cc212206d00f9c18cc21', 'hex')), { longs: String });
+  assert.deepEqual(claimDecoded, { current_score: '4400', claimed_reward_score: '4300', claimed_scores: [2000, 3100, 4300] });
+});
+
 test('getMutationCatalog 三类分组、display 过滤与命名图片映射', () => {
   const catalog = getMutationCatalog();
 

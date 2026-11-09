@@ -54,6 +54,80 @@ function registerAdminCollectionsRoutes({
     }
   });
 
+  // 激活/升星藏品
+  app.post("/api/collections/upgrade", async (req, res) => {
+    const accountId = getAuthorizedAccountId(req, res, routeContext);
+    if (!accountId) return;
+
+    const collectionId = Number(req.body?.collectionId);
+    if (!collectionId) {
+      return res.status(400).json({ ok: false, error: "缺少藏品ID" });
+    }
+
+    try {
+      const data = await provider.upgradeCollection(accountId, collectionId);
+      adminLogger.info("藏品激活/升星成功", {
+        accountId,
+        collectionId,
+      });
+      res.json({ ok: true, data });
+    } catch (err) {
+      adminLogger.error("藏品激活/升星失败", {
+        accountId,
+        collectionId,
+        error: err.message,
+      });
+      sendProviderError(res, err);
+    }
+  });
+
+  // 切换场景展示
+  app.post("/api/collections/display", async (req, res) => {
+    const accountId = getAuthorizedAccountId(req, res, routeContext);
+    if (!accountId) return;
+
+    const collectionId = Number(req.body?.collectionId);
+    if (!collectionId) {
+      return res.status(400).json({ ok: false, error: "缺少藏品ID" });
+    }
+
+    try {
+      const data = await provider.switchSceneDisplay(accountId, collectionId, Number(req.body?.pedestalId) || 0);
+      adminLogger.info("切换藏品展示成功", {
+        accountId,
+        collectionId,
+      });
+      res.json({ ok: true, data });
+    } catch (err) {
+      adminLogger.error("切换藏品展示失败", {
+        accountId,
+        collectionId,
+        error: err.message,
+      });
+      sendProviderError(res, err);
+    }
+  });
+
+  // 领取评分奖励
+  app.post("/api/collections/claim-reward", async (req, res) => {
+    const accountId = getAuthorizedAccountId(req, res, routeContext);
+    if (!accountId) return;
+
+    try {
+      const data = await provider.claimCollectionReward(accountId);
+      adminLogger.info("领取藏品评分奖励成功", {
+        accountId,
+      });
+      res.json({ ok: true, data });
+    } catch (err) {
+      adminLogger.error("领取藏品评分奖励失败", {
+        accountId,
+        error: err.message,
+      });
+      sendProviderError(res, err);
+    }
+  });
+
   // 变异宝典（本地配置，无需账号）
   app.get("/api/illustrated/mutations", async (req, res) => {
     try {

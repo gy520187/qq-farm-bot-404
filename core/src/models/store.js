@@ -306,6 +306,8 @@ const DEFAULT_AUTOMATION = {
     mystery_shop_allow_gold_bean: false,
     collection_gift_buy: false,
     collection_gift_open: false,
+    collection_auto_upgrade: false,
+    collection_auto_claim: false,
     sell: false,
     fertilizer: 'smart_normal',
     fertilizer_multi_season: true,

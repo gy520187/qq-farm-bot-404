@@ -1026,6 +1026,30 @@ function startCollectionGiftOpenTimer() {
     }, { preventOverlap: true });
 }
 
+// 藏品自动激活/升星与评分奖励领取：藏品道具主要来自礼包/活动，
+// 登录后先检查，并每 10 分钟轮询一次。
+function stopCollectionAutoTimer() {
+    workerScheduler.clear('collection_auto_initial');
+    workerScheduler.clear('collection_auto_interval');
+}
+
+function runCollectionAuto() {
+    if (!loginReady) return Promise.resolve();
+    const { runCollectionAuto } = require('../services/collection-auto');
+    return runCollectionAuto();
+}
+
+function startCollectionAutoTimer() {
+    const { COLLECTION_AUTO_CHECK_INTERVAL_MS } = require('../services/collection-auto');
+    stopCollectionAutoTimer();
+    workerScheduler.setTimeoutTask('collection_auto_initial', 10000, () => {
+        runCollectionAuto().catch(() => null);
+    });
+    workerScheduler.setIntervalTask('collection_auto_interval', COLLECTION_AUTO_CHECK_INTERVAL_MS, () => {
+        runCollectionAuto().catch(() => null);
+    }, { preventOverlap: true });
+}
+
 // 好友捣乱：每 30 分钟检查一次剩余次数，有剩余则继续捣乱
 function stopFriendBadTimer() {
     workerScheduler.clear('friend_bad_interval');
@@ -1686,6 +1710,7 @@ async function startBot(config) {
         startMysteryShopAutoBuyTimer();
         startCollectionGiftAutoBuyTimer();
         startCollectionGiftOpenTimer();
+        startCollectionAutoTimer();
         startFriendBadTimer();
 
         syncStatus();
@@ -1709,6 +1734,7 @@ async function stopBot() {
     stopMysteryShopAutoBuyTimer();
     stopCollectionGiftAutoBuyTimer();
     stopCollectionGiftOpenTimer();
+    stopCollectionAutoTimer();
     stopFriendBadTimer();
 
     networkEvents.off('kickout', onKickout);
@@ -2146,6 +2172,21 @@ async function handleApiCall(msg) {
             case 'getCollectionsSnapshot': {
                 const { getCollectionsSnapshot } = require('../services/collections');
                 result = await getCollectionsSnapshot();
+                break;
+            }
+            case 'upgradeCollection': {
+                const { upgradeCollection } = require('../services/collections');
+                result = await upgradeCollection(args[0]);
+                break;
+            }
+            case 'switchSceneDisplay': {
+                const { switchSceneDisplay } = require('../services/collections');
+                result = await switchSceneDisplay(args[0], args[1] || 0);
+                break;
+            }
+            case 'claimCollectionReward': {
+                const { claimCollectionReward } = require('../services/collections');
+                result = await claimCollectionReward();
                 break;
             }
             case 'getCareerInfo': {

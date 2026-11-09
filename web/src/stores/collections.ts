@@ -105,6 +105,39 @@ export const useCollectionsStore = defineStore('collections', () => {
     }
   }
 
+  async function upgrade(accountId: string, collectionId: number) {
+    const { data: result } = await api.post('/api/collections/upgrade', { collectionId }, {
+      headers: { 'x-account-id': accountId },
+      skipErrorToast: true,
+    } as any)
+    if (!result?.ok)
+      throw new Error(result?.error || '藏品激活/升星失败')
+    data.value = result.data.snapshot
+    return result.data
+  }
+
+  async function switchDisplay(accountId: string, collectionId: number, pedestalId = 0) {
+    const { data: result } = await api.post('/api/collections/display', { collectionId, pedestalId }, {
+      headers: { 'x-account-id': accountId },
+      skipErrorToast: true,
+    } as any)
+    if (!result?.ok)
+      throw new Error(result?.error || '切换藏品展示失败')
+    data.value = result.data.snapshot
+    return result.data
+  }
+
+  async function claimReward(accountId: string) {
+    const { data: result } = await api.post('/api/collections/claim-reward', {}, {
+      headers: { 'x-account-id': accountId },
+      skipErrorToast: true,
+    } as any)
+    if (!result?.ok)
+      throw new Error(result?.error || '领取藏品评分奖励失败')
+    data.value = result.data.snapshot
+    return result.data
+  }
+
   function reset() {
     revision++
     data.value = null
@@ -112,5 +145,5 @@ export const useCollectionsStore = defineStore('collections', () => {
     error.value = ''
   }
 
-  return { data, loading, error, fetch, reset }
+  return { data, loading, error, fetch, upgrade, switchDisplay, claimReward, reset }
 })

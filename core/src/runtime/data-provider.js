@@ -273,11 +273,14 @@ function createDataProvider(deps) {
         getIllustratedList,
         claimIllustratedRewards: (ref, type) => callWorkerApi(resolveAccountId(ref), 'claimIllustratedRewards', type),
 
-        // ========== Collections（藏品宝典，只读） ==========
+        // ========== Collections（藏品宝典） ==========
         getCollectionsSnapshot: (ref) => {
             const accountId = resolveAccountId(ref);
             return callWorkerReadOnce(`collections:${String(accountId || '')}`, accountId, 'getCollectionsSnapshot');
         },
+        upgradeCollection: (ref, collectionId) => callWorkerApi(resolveAccountId(ref), 'upgradeCollection', collectionId),
+        switchSceneDisplay: (ref, collectionId, pedestalId) => callWorkerApi(resolveAccountId(ref), 'switchSceneDisplay', collectionId, pedestalId),
+        claimCollectionReward: (ref) => callWorkerApi(resolveAccountId(ref), 'claimCollectionReward'),
 
         // ========== Career ==========
         getCareerInfo: (ref, gid) => callWorkerApi(resolveAccountId(ref), 'getCareerInfo', gid),

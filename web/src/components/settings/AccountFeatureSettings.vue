@@ -82,6 +82,8 @@ const selectedLandTypeCount = computed(() => Array.isArray(automation.value.auto
 const activityKeys = computed(() => [
   'collection_gift_buy',
   'collection_gift_open',
+  'collection_auto_upgrade',
+  'collection_auto_claim',
   ...pluginAutomationKeys.value,
   ...(showRainPoemActivity.value
     ? ['rain_poem_bottle_buy', 'rain_poem_weather_collect', 'rain_poem_summon_use', 'rain_poem_prank_use', 'rain_poem_research_unlock']
@@ -167,6 +169,8 @@ function summaryTags(key: ModuleKey) {
     automation.value.automation.task ? '自动完成日常任务' : '不做日常',
     automation.value.automation.collection_gift_buy && '自动购买藏品礼包',
     automation.value.automation.collection_gift_open && '自动开启藏品礼包',
+    automation.value.automation.collection_auto_upgrade && '自动激活升星藏品',
+    automation.value.automation.collection_auto_claim && '自动领取评分奖励',
     SHOW_STAR_ACTIVITY && starFestivalEnabled.value && '心许千灯星垂野',
     SHOW_QIXI_ACTIVITY && qixiActivityEnabled.value && '鹊桥寄情',
     showRainPoemActivity.value && rainPoemActivityEnabled.value && '雨落成诗',
@@ -623,6 +627,21 @@ watch(() => props.currentAccountId, loadQixiFriends)
                 <div class="grid gap-3 sm:grid-cols-2">
                   <BaseSwitch v-model="automation.automation.collection_gift_buy" label="自动购买藏品礼包" />
                   <BaseSwitch v-model="automation.automation.collection_gift_open" label="自动开启藏品礼包" />
+                </div>
+              </section>
+
+              <section class="border border-gray-100 rounded-lg p-4 space-y-3 dark:border-gray-700">
+                <div>
+                  <div class="text-sm text-gray-700 font-medium dark:text-gray-300">
+                    藏品自动管理
+                  </div>
+                  <div class="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                    自动激活/升星已持有足够道具的蓝晶藏品，并在评分达到奖励档位后自动领取。
+                  </div>
+                </div>
+                <div class="grid gap-3 sm:grid-cols-2">
+                  <BaseSwitch v-model="automation.automation.collection_auto_upgrade" label="自动激活升星藏品" />
+                  <BaseSwitch v-model="automation.automation.collection_auto_claim" label="自动领取评分奖励" />
                 </div>
               </section>
 

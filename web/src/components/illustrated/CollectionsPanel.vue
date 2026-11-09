@@ -6,9 +6,11 @@ import BaseButton from '@/components/ui/BaseButton.vue'
 import BaseSelect from '@/components/ui/BaseSelect.vue'
 import { useAccountStore } from '@/stores/account'
 import { useCollectionsStore } from '@/stores/collections'
+import { useToastStore } from '@/stores/toast'
 
 const { currentAccountId } = storeToRefs(useAccountStore())
 const store = useCollectionsStore()
+const toast = useToastStore()
 const { data, loading, error } = storeToRefs(store)
 
 const seriesId = ref<string | number>(0)
@@ -17,6 +19,9 @@ const status = ref<'all' | 'active' | 'pending' | 'missing'>('all')
 const selected = ref<CollectionItem | null>(null)
 const rewardsOpen = ref(false)
 const openRulesId = ref<number | null>(null)
+const activating = ref(false)
+const displaying = ref(false)
+const claiming = ref(false)
 
 /** 稀有度色标：普通、稀有、珍品、天工。 */
 const RARITY_CLASSES: Record<number, string> = {
@@ -83,9 +88,68 @@ function segmentedClasses(active: boolean) {
     : 'text-gray-600 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-700'
 }
 
+const hasClaimableRewards = computed(() => (data.value?.milestones || []).some(milestone => milestone.reached && !milestone.claimed))
+
 async function refresh() {
   if (currentAccountId.value)
     await store.fetch(currentAccountId.value)
+}
+
+function refreshSelected(item: CollectionItem) {
+  const fresh = data.value?.series.flatMap(series => series.items).find(candidate => Number(candidate.id) === Number(item.id))
+  if (fresh)
+    selected.value = fresh
+}
+
+async function activate(item: CollectionItem) {
+  if (!currentAccountId.value || activating.value)
+    return
+  const isUpgrade = item.activated
+  activating.value = true
+  try {
+    await store.upgrade(currentAccountId.value, item.id)
+    toast.success(isUpgrade ? '升星成功' : '藏品已激活')
+    refreshSelected(item)
+  }
+  catch (cause: any) {
+    toast.error(cause?.response?.data?.error || cause?.message || '藏品激活失败')
+  }
+  finally {
+    activating.value = false
+  }
+}
+
+async function display(item: CollectionItem) {
+  if (!currentAccountId.value || displaying.value)
+    return
+  displaying.value = true
+  try {
+    await store.switchDisplay(currentAccountId.value, item.id)
+    toast.success('已设为场景展示')
+    refreshSelected(item)
+  }
+  catch (cause: any) {
+    toast.error(cause?.response?.data?.error || cause?.message || '切换展示失败')
+  }
+  finally {
+    displaying.value = false
+  }
+}
+
+async function claimRewards() {
+  if (!currentAccountId.value || claiming.value)
+    return
+  claiming.value = true
+  try {
+    await store.claimReward(currentAccountId.value)
+    toast.success('评分奖励领取成功')
+  }
+  catch (cause: any) {
+    toast.error(cause?.response?.data?.error || cause?.message || '领取奖励失败')
+  }
+  finally {
+    claiming.value = false
+  }
 }
 
 watch(currentAccountId, () => {
@@ -357,6 +421,42 @@ onBeforeUnmount(() => store.reset())
             </div>
           </div>
 
+          <div class="mt-4 flex gap-2">
+            <BaseButton
+              v-if="selected && itemStatus(selected) === 'pending'"
+              variant="primary"
+              :loading="activating"
+              class="flex-1"
+              @click="activate(selected)"
+            >
+              激活藏品
+            </BaseButton>
+            <BaseButton
+              v-else-if="selected && selected.activated && selected.starLevel < selected.maxStarLevel"
+              variant="primary"
+              :loading="activating"
+              class="flex-1"
+              @click="activate(selected)"
+            >
+              升星
+            </BaseButton>
+            <BaseButton
+              v-if="selected && selected.activated && !selected.displayed"
+              variant="secondary"
+              :loading="displaying"
+              class="flex-1"
+              @click="display(selected)"
+            >
+              设为展示
+            </BaseButton>
+            <span
+              v-if="selected && selected.activated && selected.displayed"
+              class="inline-flex flex-1 items-center justify-center gap-1 rounded-lg border border-blue-200 bg-blue-50 py-2 text-sm text-blue-600 dark:border-blue-800 dark:bg-blue-900/20 dark:text-blue-300"
+            >
+              <span class="i-carbon-view" />展示中
+            </span>
+          </div>
+
           <ul v-if="selected.requirements.length" class="mt-4 flex flex-col gap-1 rounded-lg bg-gray-50 px-3 py-2.5 text-xs leading-relaxed text-gray-500 dark:bg-gray-900/40 dark:text-gray-400">
             <li v-for="requirement in selected.requirements" :key="requirement">
               {{ requirement }}
@@ -370,11 +470,16 @@ onBeforeUnmount(() => store.reset())
     <Teleport to="body">
       <div v-if="rewardsOpen" class="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" @click.self="rewardsOpen = false">
         <div class="max-h-[85vh] w-full max-w-xl overflow-y-auto rounded-xl bg-white p-5 shadow-xl dark:bg-gray-800" role="dialog" aria-label="藏品评分奖励">
-          <div class="mb-4 flex items-center justify-between">
+          <div class="mb-4 flex items-center justify-between gap-2">
             <h3 class="text-lg font-bold">
               藏品评分奖励
             </h3>
-            <button type="button" class="i-carbon-close cursor-pointer text-xl text-gray-400 hover:text-gray-600 dark:hover:text-gray-200" aria-label="关闭" @click="rewardsOpen = false" />
+            <div class="flex shrink-0 items-center gap-2">
+              <BaseButton v-if="hasClaimableRewards" variant="primary" size="sm" :loading="claiming" @click="claimRewards">
+                领取全部
+              </BaseButton>
+              <button type="button" class="i-carbon-close cursor-pointer text-xl text-gray-400 hover:text-gray-600 dark:hover:text-gray-200" aria-label="关闭" @click="rewardsOpen = false" />
+            </div>
           </div>
           <div class="flex flex-col gap-1.5">
             <div

@@ -166,6 +166,12 @@ async function loadProto() {
     types.ClaimAllRewardsV2Reply = root.lookupType('gamepb.illustratedpb.ClaimAllRewardsV2Reply');
     types.GetCollectionsRequest = root.lookupType('gamepb.collectionpb.GetCollectionsRequest');
     types.GetCollectionsReply = root.lookupType('gamepb.collectionpb.GetCollectionsReply');
+    types.UpgradeCollectionRequest = root.lookupType('gamepb.collectionpb.UpgradeCollectionRequest');
+    types.UpgradeCollectionReply = root.lookupType('gamepb.collectionpb.UpgradeCollectionReply');
+    types.SwitchSceneDisplayRequest = root.lookupType('gamepb.collectionpb.SwitchSceneDisplayRequest');
+    types.SwitchSceneDisplayReply = root.lookupType('gamepb.collectionpb.SwitchSceneDisplayReply');
+    types.ClaimCollectionRewardRequest = root.lookupType('gamepb.collectionpb.ClaimCollectionRewardRequest');
+    types.ClaimCollectionRewardReply = root.lookupType('gamepb.collectionpb.ClaimCollectionRewardReply');
     types.CoreItem = root.lookupType('corepb.Item');
 
     // 活动

@@ -1,8 +1,9 @@
 /**
  * 藏品宝典（蓝晶藏品）
  * 移植自上游 muyuewang/qq-farm-bot-404 79c465f（collections.ts），
- * 协议：gamepb.collectionpb.CollectionService.GetCollections（category=1 蓝晶）。
- * 只读功能：激活/升星/领奖/许愿/换展台等写操作官方未验证，不提供。
+ * 协议：gamepb.collectionpb.CollectionService（category=1 蓝晶）。
+ * 写操作（激活/升星/切换展示/领评分奖励）字段号来自 2026-11-09 官方抓包解密（historical-plaintext-capture），
+ * 见 core/docs/collection-write-protocol.md；许愿/换展台等其余写操作未验证，不提供。
  */
 
 const fs = require('node:fs');
@@ -157,6 +158,95 @@ function getCollectionsSnapshot() {
     return request;
 }
 
+/** 将 int64 回复字段转成字符串，保持与前端快照一致 */
+function stringifyReply(reply) {
+    const out = {};
+    for (const [key, value] of Object.entries(reply)) {
+        if (value && typeof value === 'object' && typeof value.toNumber === 'function') out[key] = String(value.toNumber());
+        else out[key] = value;
+    }
+    return out;
+}
+
+/** 在快照中查找藏品条目，不存在则抛错。 */
+function findCollectionItem(snapshot, collectionId) {
+    const item = snapshot.series.flatMap(series => series.items).find(row => Number(row.id) === Number(collectionId));
+    if (!item) throw new Error(`未找到藏品 ${collectionId}`);
+    return item;
+}
+
+/** 激活/升星前置校验：未获得不可激活、满星不可升星、对应藏品道具不足不可操作。 */
+function assertCanUpgrade(snapshot, collectionId) {
+    const item = findCollectionItem(snapshot, collectionId);
+    if (!item.activated && Number(item.ownCount) < 1) throw new Error(`藏品 ${item.name} 尚未获得，无法激活`);
+    if (item.activated && item.starLevel >= item.maxStarLevel) throw new Error(`${item.name} 已达最高星级`);
+    const need = item.nextStarCosts.find(cost => Number(cost.itemId) === Number(collectionId));
+    if (need && Number(item.ownCount) < Number(need.count)) throw new Error(`${item.name} 道具不足：激活/升星需要 ${need.count} 个，当前持有 ${item.ownCount} 个`);
+    return item;
+}
+
+/** 切换展示前置校验：未激活不可展示。 */
+function assertCanDisplay(snapshot, collectionId) {
+    const item = findCollectionItem(snapshot, collectionId);
+    if (!item.activated) throw new Error(`${item.name} 尚未激活，无法展示`);
+    return item;
+}
+
+/** 领奖前置校验：存在已达成未领取的评分档位。 */
+function assertClaimable(snapshot) {
+    const hasClaimable = snapshot.milestones.some(milestone => milestone.reached && !milestone.claimed);
+    if (!hasClaimable) throw new Error('当前没有可领取的评分奖励');
+}
+
+/** 激活/升星藏品：消耗对应藏品道具，服务端校验库存与消耗。 */
+async function upgradeCollection(collectionId) {
+    const snapshot = await getCollectionsSnapshot();
+    assertCanUpgrade(snapshot, collectionId);
+
+    const { sendMsgAsync } = require('../utils/network');
+    const { types } = require('../utils/proto');
+    const body = types.UpgradeCollectionRequest.encode(types.UpgradeCollectionRequest.create({
+        category: CATEGORY,
+        collection_id: Number(collectionId),
+    })).finish();
+    const reply = await sendMsgAsync('gamepb.collectionpb.CollectionService', 'UpgradeCollection', body);
+    const decoded = types.UpgradeCollectionReply.decode(reply.body);
+    return { ...stringifyReply(decoded), snapshot: await getCollectionsSnapshot() };
+}
+
+/** 切换场景展示：把已激活藏品放到场景展示位。 */
+async function switchSceneDisplay(collectionId, pedestalId = 0) {
+    const snapshot = await getCollectionsSnapshot();
+    assertCanDisplay(snapshot, collectionId);
+
+    const { sendMsgAsync } = require('../utils/network');
+    const { types } = require('../utils/proto');
+    const body = types.SwitchSceneDisplayRequest.encode(types.SwitchSceneDisplayRequest.create({
+        display_slot: {
+            slot_type: 1,
+            display: { category: CATEGORY, item_id: Number(collectionId), pedestal_id: Number(pedestalId) },
+        },
+    })).finish();
+    const reply = await sendMsgAsync('gamepb.collectionpb.CollectionService', 'SwitchSceneDisplay', body);
+    const decoded = types.SwitchSceneDisplayReply.decode(reply.body);
+    return { ...stringifyReply(decoded), snapshot: await getCollectionsSnapshot() };
+}
+
+/** 领取评分奖励：一次性领取所有已达成未领取档位。 */
+async function claimCollectionReward() {
+    const snapshot = await getCollectionsSnapshot();
+    assertClaimable(snapshot);
+
+    const { sendMsgAsync } = require('../utils/network');
+    const { types } = require('../utils/proto');
+    const body = types.ClaimCollectionRewardRequest.encode(types.ClaimCollectionRewardRequest.create({
+        category: CATEGORY,
+    })).finish();
+    const reply = await sendMsgAsync('gamepb.collectionpb.CollectionService', 'ClaimCollectionReward', body);
+    const decoded = types.ClaimCollectionRewardReply.decode(reply.body);
+    return { ...stringifyReply(decoded), snapshot: await getCollectionsSnapshot() };
+}
+
 function getMutationCatalog() {
     const { mutants, probabilities, seriesConfig, itemConfig } = ensureConfig();
     const effects = mutants.filter((row) => !row.hide_ui).sort((a, b) => (a.sort || 0) - (b.sort || 0)).map((row) => {
@@ -185,4 +275,8 @@ function getMutationCatalog() {
     };
 }
 
-module.exports = { getCollectionsSnapshot, normalizeCollections, getMutationCatalog };
+module.exports = {
+    getCollectionsSnapshot, normalizeCollections, getMutationCatalog,
+    findCollectionItem, assertCanUpgrade, assertCanDisplay, assertClaimable,
+    upgradeCollection, switchSceneDisplay, claimCollectionReward,
+};

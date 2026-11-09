@@ -1,11 +1,17 @@
 syntax = "proto3";
 
 // 藏品宝典（蓝晶藏品）
-// 与官方 2026-11-01 客户端编码器及 GetCollections 抓包核对。
+// GetCollections 与官方 2026-11-01 客户端编码器及 GetCollections 抓包核对。
+// UpgradeCollection / SwitchSceneDisplay / ClaimCollectionReward 请求与回复字段号来自
+// 2026-11-09 网关抓包（HAR，请求体经本地 TSDK 运行时解密），证据级别 historical-plaintext-capture；
+// 尚未与官方生成代码逐字段核对，字段名按回复语义命名。
 package gamepb.collectionpb;
 
 service CollectionService {
   rpc GetCollections(GetCollectionsRequest) returns (GetCollectionsReply);
+  rpc UpgradeCollection(UpgradeCollectionRequest) returns (UpgradeCollectionReply);
+  rpc SwitchSceneDisplay(SwitchSceneDisplayRequest) returns (SwitchSceneDisplayReply);
+  rpc ClaimCollectionReward(ClaimCollectionRewardRequest) returns (ClaimCollectionRewardReply);
 }
 
 message GetCollectionsRequest {
@@ -45,7 +51,8 @@ message CategoryDetail {
 message DisplayInfo {
     int32 category = 1;
     int64 item_id = 2;
-    int64 pedestal_id = 3;
+    // 官方客户端在 SwitchSceneDisplay 请求中会显式编码 0（proto3 optional 显式存在性）。
+    optional int64 pedestal_id = 3;
 }
 
 message DisplaySlot {
@@ -56,4 +63,42 @@ message DisplaySlot {
 message GetCollectionsReply {
     repeated CategoryDetail details = 1;
     repeated DisplaySlot display_slots = 2;
+}
+
+// 激活/升星藏品：请求 {1: category, 2: collection_id}，消耗对应藏品（服务端校验库存）。
+message UpgradeCollectionRequest {
+    int64 category = 1;
+    int64 collection_id = 2;
+}
+
+// 回复 {1: category, 2: collection_id, 3: 升星后星级, 4: 升星后当前评分}。
+message UpgradeCollectionReply {
+    int64 category = 1;
+    int64 collection_id = 2;
+    int64 star_level = 3;
+    int64 current_score = 4;
+}
+
+// 切换场景展示：请求 {1: DisplaySlot{1: slot_type, 2: DisplayInfo{1: category, 2: item_id, 3: pedestal_id}}}。
+// 抓包中 slot_type=1，pedestal_id 显式编码 0（proto3 optional 显式存在性）。
+message SwitchSceneDisplayRequest {
+    DisplaySlot display_slot = 1;
+}
+
+// 回复 {1: DisplaySlot{1: slot_type, 2: DisplayInfo}}。
+message SwitchSceneDisplayReply {
+    DisplaySlot display_slot = 1;
+}
+
+// 领取评分奖励：请求 {1: category}，服务端一次性领取所有已达成未领取档位。
+message ClaimCollectionRewardRequest {
+    int64 category = 1;
+}
+
+// 回复 {2: 领取后当前评分, 3: 领取后 claimed_reward_score, 4: 本次领取的里程碑分数列表}。
+// field 1 在抓包中恒为 0（未编码），推断为结果码，暂不定义。
+message ClaimCollectionRewardReply {
+    int64 current_score = 2;
+    int64 claimed_reward_score = 3;
+    repeated int32 claimed_scores = 4 [packed = true];
 }
